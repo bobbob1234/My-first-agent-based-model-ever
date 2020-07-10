@@ -1,2 +1,2 @@
-# My-first-agent-based-model-ever
-Agent Based Model describing the foraging/nesting tendencies of Birds in a local neighbourhood.
+# Agent Based Model
+## Simple AGM model modelling fruit fly emergence, population characteristics  in a residental setting
