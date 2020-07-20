@@ -1,0 +1,6 @@
+AGM Model
+1) Weighting - on tier, money,
+2) Kinda of tech tree
+3) Simulation of Lap Times
+4) Agent indepdently genereating strategies, to improve / maximise a particular function, 
+5)

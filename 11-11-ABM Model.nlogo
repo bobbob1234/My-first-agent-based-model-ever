@@ -1,25 +1,37 @@
-breed[racing_teams race_team]
+extensions[array]
+
+
+breed[racing-teams race-team]
 breed[drivers driver]
 breed[authorities authority]
 
 
 globals
 [
-  z ;; cross product
+  z ;; cross product initalized to zero
+  starting-gen
+  list1Vals
+  tier-range
+
+
 
 ]
-racing_teams-own
+racing-teams-own
 [
-  strategy_basket ;; virtually strategic choices looking to maximise technology_level , car quality, winnings
+  strategy ;; virtually strategic choices looking to maximise technology_level , car quality, winnings
   car-quality ;; assume that every team has same quality
   technology-level ;; measure of work on car, access to knowledge,, closely correlated to tech_breakthrough_rate
-  team- history ;; history of team over cycles(seasons) + generations(races)
+  team-history ;; history of team over cycles(seasons) + generations(races)
   tier ;; based on winnings, select three tiers that best describes a racing team
   sponsor-appeal ;; random at first, but can be weighted on team-history,tier and winnings
   supplier_quality ;;
-  tech_breakthrough_rate ;; speed of innovation
-  money ;; initalize a
+  tbr ;; speed of innovation
+  starting-money ;; initalize a
    ;; team-loyalty
+  grid ;; starting_position, variable over race
+  team-no ;; number of team max(10)
+  gen;; iteration
+  performance-effects
 
 ]
 
@@ -27,8 +39,8 @@ drivers-own
 [
   experience
   loyalty
-  driver_skill  ;; a random function, but increases over a combination of experience + wins
-  driver_history
+  driver-skill  ;; a random function, but increases over a combination of experience + wins
+  driver-history
 
 ]
 
@@ -40,8 +52,10 @@ patches-own[
 
 to setup
   ca
+  set starting-gen 0
   produce-track
   setup-authority
+  setup-racing-teams
   reset-ticks
 end
 
@@ -69,33 +83,34 @@ to produce-track
   let convex_list_input  sort-on [pxcor]active_patches
  let U_list []
  let L_list[]
+ let sz 0
   foreach convex_list_input
-  [
-    [x] -> U_list[item x]
+ [
+    ;while(sz > = 2 and cross(U_list[sz -2],U_list[sz -1]) <= 0)
+    ;[
+      ;U_list
 
-    while(length(U_list) > = 2 and cross(U_list[-2],U_list[-1]) <= 0)
-    [
-      U_list
-    ]
-  ]
-  foreach L_list
-  [
-    while(length(U_list) > = 2 and cross(U_list[-2],U_list[-1]) <= 0)
-    [
-
-    ]
+    ;2]
+  ;]
+  ;foreach L_list
+  ;[
+   ; while(length(U_list) > = 2 and cross(U_list[-2],U_list[-1]) <= 0)
+    ;[
+;
+ ;   ]
+  ;]
   ]
 end
 
    to setup-authority
 
-  if(Authority-Style == "Agressive"
+  if(Authority-Style = "Agressive")
     [
       ;; penalize harder - look at overall pace, introduce penalizers for specefic teams
       ;; generate hard rules
       ;; 70/30 risk reward ratio
     ]
-    if(Authority-Style == "Balanced"
+    if(Authority-Style = "Balanced")
     [
       ;; penalize balanced - look at overall pace, graudal periods of anti competitveness
       ;; generate balanced rules
@@ -103,7 +118,7 @@ end
     ]
 
 
-    if(Authority-Style == "Lenient"
+    if(Authority-Style = "Lenient")
     [
       ;; penalize less - look at overall pace, graudal periods of anti competitveness
       ;; generate rules - influenced by majority voting
@@ -112,19 +127,186 @@ end
 
 end
 
+to setup-racing-teams
+  ;let created-vars num-of-teams
+  ;let seq-1  array:from-list n-values num-of-teams[0]
+  ;let seq-2 (range 10)
+  create-racing-teams num-of-teams [
 
+
+
+
+    ;for
+    set color green
+  setxy random-xcor random-ycor
+
+    let tier-dt round((count num-of-teams) / tier-range)
+    let left-over (count num-of-teams)  mod  tier-range9
+    loop[
+    let tier-list (range tier-dt)
+
+         let ind1 one-of range length tier-list
+        set list1Vals item ind1 tier-list
+
+      set tier  list1Vals
+      set tier-list remove-item ind1 tier-list
+    ]
+
+    while[(a + b + c) < num-of-teams]
+      [
+       set  a  a + 1
+        while[(a  + b + c) < num-of-teams]
+        [
+          set b  b + 1
+
+          while[(a + b + c) < num-of-teams]
+          [
+
+       set c  c + 1
+      ]
+        ]
+      ]
+
+
+
+
+
+
+    while[tier < 1]
+    [
+      set tier random 4
+
+
+    ]
+    if(tier = 1)
+    [
+    let rand-money  random-float 1000
+     set starting-money 10 * rand-money
+    ]
+    if(tier = 2)
+    [
+    let rand-money  random-float 1000
+     set starting-money 5 * rand-money
+    ]if(tier = 3)
+    [
+    let rand-money  random-float 1000
+     set starting-money 2.5 * rand-money
+    ]
+    let tier-1-count count racing-teams with[tier = 1]
+    let random-list (range tier-1-count)
+    let random-list2 (range tier-1-count)
+    foreach random-list [x -> set random-list lput x random-list2 ]
+
+
+    ;;; Tier 1
+    ask racing-teams with [tier = 1]
+    [
+      if( empty? random-list2  = false)
+      [
+      let ind1 one-of range length random-list2
+        set list1Vals item ind1 random-list2
+
+      set team-no  list1Vals
+      set random-list2 remove-item ind1 random-list2
+    ]
+    ]
+
+    let tier-2-count count racing-teams with[tier = 2]
+    set random-list (range tier-2-count)
+    set random-list2 (range tier-2-count)
+    foreach random-list [x -> set random-list lput x random-list2 ]
+    ;;;; Tier 2
+
+    ask racing-teams with [tier = 2]
+    [
+      if( empty? random-list2  = false)
+      [
+      let ind1 one-of range length random-list2
+      set list1Vals item ind1 random-list2
+
+      set team-no  list1Vals
+      set random-list2 remove-item ind1 random-list2
+      ]
+    ]
+    ;;;; Tier 3
+    let tier-3-count count racing-teams with[tier = 3]
+    let random-list-t3 (range tier-3-count)
+    let random-list2-t3(range tier-3-count)
+    foreach random-list-t3 [x -> set random-list lput x random-list2 ]
+     ask racing-teams with [tier = 3]
+    [
+      if( empty? random-list2  = false)
+      [
+      let ind1 one-of range length random-list2
+       set list1Vals item ind1 random-list2
+
+      set team-no  list1Vals
+      set random-list2 remove-item ind1 random-list2
+      ]
+    ]
+
+    set tbr ((random-float 1 / tier))
+    while[sponsor-appeal > 100]
+    [
+      set sponsor-appeal random 100 + tbr + (1 / tier)
+    ]
+    set technology-level (1 / log starting-money 10) * ((tbr) * (1 / (log starting-money 10)))
+  ]
 
 
 end
+
+to update-race
+  [
+
+  ]
+end
+
+;to update-racing-teams
+ ; [
+  ;  ask racing-teams
+   ; [
+    ;  if(gen = 1)
+     ; [
+      ;  set tech-level (1/log((starting-money 10)) * ((tbr) * 1/(log(starting-money 10))) ;; exponential growth def for tech-level
+      ;]
+
+
+     ; if(gen > starting_gen)
+    ; [
+     ;set tech-level (tech-level * performance-effects)
+    ;]
+
+
+     ; set gen  (gen + 1)
+      ;]
+
+    ;]
+;end
+
+to-report sim-race
+
+  [
+  ]
+
+
+end
+
+  to-report racing-team-strategy
+  let x 1
+  report x
+
+end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
+222
+22
 647
 448
 -1
 -1
-13.0
+12.64
 1
 10
 1
@@ -152,7 +334,7 @@ CHOOSER
 Authority-Style
 Authority-Style
 "Agressive" "Balanced" "Lenient"
-2
+1
 
 PLOT
 681
@@ -244,6 +426,55 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles"
 
+SLIDER
+12
+70
+124
+103
+num-of-teams
+num-of-teams
+0
+20
+10.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+21
+212
+221
+362
+Team Plots
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count racing_teams with [tier = 2]"
+"pen-1" 1.0 0 -7500403 true "" "plot count racing_teams with[tier = 3]"
+
+SLIDER
+17
+112
+190
+145
+decision-width
+decision-width
+0
+100
+10.0
+1
+1
+NIL
+HORIZONTAL
+
 @#$#@#$#@
 ## WHAT IS IT?
 
@@ -267,7 +498,8 @@ PENS
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+1) https://pdf.sciencedirectassets.com/280203/1-s2.0-S1877050918X00064/1-s2.0-S1877050918303776/main.pdf?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEHAaCXVzLWVhc3QtMSJGMEQCIEDqHQJ6Jy1im65OKEAOe%2FoBpnQr4EtgvBh2B6mbRTZxAiAVFsug7jqQUfQQwwtoXxjqt1b%2FEFrwr0j6AYYE2yTTsiq0AwgoEAMaDDA1OTAwMzU0Njg2NSIMAIk0JxcZibwy4phsKpEDkVPLFqq54ZnWqYFuesskxkU8djrr0vBi4Vp%2BLz0ItSF0cZpmMMgFBSFxEFvXt8dypdNfYBEoDithayhg1c5sUKVuxHtpxTXEEld6nXchDN986rxco%2FQ5cxvq7l5Sfx1P4FCR%2FxGAs%2BfWz40ZA4mVqoWHBc92U5KG50jYe5ZabsZOWzGez2qHXdqCSVODDpSOcEwzx6YGSHhh5cMAnefzoVHkXOhIdq%2BIGTgjd4%2FRz39zvsPCkHqjetY4b7aHBmyXej9jc2WfuKVsgJXrmvu3gTnARvYJcjcRloJTGvgwk9uNPh%2BI9959VrRkgDtoIISLr8aMl65GZQsxigVSpT8zhfK1d2DtUZnDKyl7%2FmdvxzFp5Gkz4jzSa3guBTwNESzKQIyFr7YGa8Cua3bGEv1cMXmCtHRhyR72HHc38ezaNjHaxMGyHiocXwNEvuU%2FOJRQJ3MW2YEVHYCKW3%2FYM87CvAJSvd239gNZRP6S36z%2BSfhjX7XgEdrG509YDKDnuZCL99%2B9xA%2BuZvPn9HK%2BrfkAKo0wiIvV%2BAU67AEF2h1I8BOU61yWgfNQbiPc7FurhsbQ%2BboNadAnYe%2F6ZiF5iwuHHX8rNCvttRaARjUqOfCQnhU19XLu69LHkZg28JJyQwhxk6Xorygh6gp0WiVjDJi%2BvQ7hUUt0GrpvZSm%2BPsqMZm28BhvhF77xkAA6NulVkpNEcbCv8mFCEze0syYFbiv3CX89sDyJfwmbCchAf1GvVhXGnUHSqXq0zUzv4PA6EcmyKRLtYdUgfPVes7C4DpnpyqcFHGPr2Rrn9hZcoXUipy4Vmf0okVSHdkdgXRRypLxAOPSV8w0xLRVn2bcC4h6oCOTKMtnMrw%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20200720T074112Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAQ3PHCVTYSPGBB5FB%2F20200720%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=5294ed81881cb4264e6425b4014c7e046d2566cbba370c06383a8c7fc6b23f9a&hash=b62b03b8d8a2a6a32b03d9b5b231981f19ffcdaa4eed1a46be7084d9be1c8b01&host=68042c943591013ac2b2430a89b270f6af2c76d8dfd086a07176afe7c76c2c61&pii=S1877050918303776&tid=spdf-f068e89f-aeb0-43f9-b70e-addcd5d59de8&sid=9609a67686e6894f4369b8d32746d7cbedbagxrqb&type=client
+
 
 ## NETLOGO FEATURES
 
@@ -603,5 +835,5 @@ true
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
 @#$#@#$#@
-0
+1
 @#$#@#$#@
