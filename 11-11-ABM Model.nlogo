@@ -9,9 +9,12 @@ breed[authorities authority]
 globals
 [
   z ;; cross product initalized to zero
-  starting-gen
   list1Vals
-  tier-range
+  my-tiers
+  range-var
+  memory-size
+  disconnected-drivers
+
 
 
 
@@ -22,16 +25,21 @@ racing-teams-own
   car-quality ;; assume that every team has same quality
   technology-level ;; measure of work on car, access to knowledge,, closely correlated to tech_breakthrough_rate
   team-history ;; history of team over cycles(seasons) + generations(races)
-  tier ;; based on winnings, select three tiers that best describes a racing team
-  sponsor-appeal ;; random at first, but can be weighted on team-history,tier and winnings
-  supplier_quality ;;
+  my-tier ;; based on winnings, select three my-tiers that best describes a racing team
+  sponsor-appeal ;; random at first, but can be weighted on team-history,my-tier and winnings
+  supplier-quality ;;
   tbr ;; speed of innovation
   starting-money ;; initalize a
-   ;; team-loyalty
   grid ;; starting_position, variable over race
   team-no ;; number of team max(10)
   gen;; iteration
   performance-effects
+  lap-history
+  links-contained;; netlogo variable, used to record links that are attached to specefic agent
+  total-score ; sum of car-quality + tech-level + sponsor-appeal + starting-money
+  starting-gen;
+  gen-current;
+  newly-hatched;
 
 ]
 
@@ -41,6 +49,8 @@ drivers-own
   loyalty
   driver-skill  ;; a random function, but increases over a combination of experience + wins
   driver-history
+  connected
+  grassroot
 
 ]
 
@@ -52,20 +62,26 @@ patches-own[
 
 to setup
   ca
-  set starting-gen 0
   produce-track
   setup-authority
   setup-racing-teams
+  setup-drivers
+  layout-spring racing-teams links 1 10 1
   reset-ticks
 end
 
 to go
+  ;update-race
+ update-racing-teams
+ update-generation
+ ; update-driver-pool
+
+
   tick
 end
 to-report cross [x y]
   report (x - z) * (y - z) - (x - x) * (y - z) ;; 3D cross-product, but defined in 2D
   	
-
 
 
 end
@@ -74,9 +90,9 @@ to produce-track
   set z 0
   ask up-to-n-of 20 patches
   [
-    set pcolor gray
-    set track_flag 1
-    set heading 0
+    ;set pcolor gray
+    ;set track_flag 1
+    ;set heading 0
 
   ]
   let active_patches  patches  with [track_flag = 1]
@@ -84,8 +100,8 @@ to produce-track
  let U_list []
  let L_list[]
  let sz 0
-  foreach convex_list_input
- [
+ ; foreach convex_list_input
+ ;[
     ;while(sz > = 2 and cross(U_list[sz -2],U_list[sz -1]) <= 0)
     ;[
       ;U_list
@@ -99,13 +115,14 @@ to produce-track
 ;
  ;   ]
   ;]
-  ]
+ ; ]
 end
 
    to setup-authority
 
   if(Authority-Style = "Agressive")
     [
+      ;;https://www.econstor.eu/bitstream/10419/195190/1/1662796994.pdf
       ;; penalize harder - look at overall pace, introduce penalizers for specefic teams
       ;; generate hard rules
       ;; 70/30 risk reward ratio
@@ -128,133 +145,126 @@ end
 end
 
 to setup-racing-teams
-  ;let created-vars num-of-teams
-  ;let seq-1  array:from-list n-values num-of-teams[0]
-  ;let seq-2 (range 10)
+  set range-var 1
   create-racing-teams num-of-teams [
-
-
-
-
-    ;for
+    set pcolor white
     set color green
   setxy random-xcor random-ycor
+    set my-tier one-of (range range-var tier-range)
+    set starting-gen 0
+    set newly-hatched false
 
-    let tier-dt round((count num-of-teams) / tier-range)
-    let left-over (count num-of-teams)  mod  tier-range9
-    loop[
-    let tier-list (range tier-dt)
 
-         let ind1 one-of range length tier-list
-        set list1Vals item ind1 tier-list
 
-      set tier  list1Vals
-      set tier-list remove-item ind1 tier-list
-    ]
 
-    while[(a + b + c) < num-of-teams]
-      [
-       set  a  a + 1
-        while[(a  + b + c) < num-of-teams]
+let random-var median (list 10 ((random-normal 10.1 5.2)) 15)
+ set starting-money (1 / my-tier) * ((random-var)^(tier-range - my-tier))
+ let range-list (range range-var tier-range)
+    foreach range-list
+    [
+      x ->
+      let agent-subset  racing-teams with[my-tier = x]
+      let counts count agent-subset with[my-tier = x]
+        if(counts mod 2 = 0 and counts != 0)
         [
-          set b  b + 1
+          let result counts / 2
+          let result2 counts + 1
+          let list-1 (range range-var result2)
+          let list-2 (range range-var result2)
+          let list-3 sentence list-1 list-2
 
-          while[(a + b + c) < num-of-teams]
+          foreach list-3
+        [
+if(length list-3 > 2)
           [
+    let ind1 one-of (range range-var length list-3)
+          ask agent-subset[
+    set team-no item ind1 list-3
+          ]
+    set list-3 remove-item ind1 list-3
 
-       set c  c + 1
-      ]
+          ]
         ]
+        if(length list-3 <= 1)
+        [
+        let ind2 one-of list-3
+        ask agent-subset [
+          set team-no item ind2 list-3
+        ]
+
+        ]
+
       ]
+      while[team-no = 0]
+        [
+          let edit-list (range range-var tier-range)
+          set team-no one-of edit-list
+        ]
 
-
-
-
-
-
-    while[tier < 1]
-    [
-      set tier random 4
-
-
-    ]
-    if(tier = 1)
-    [
-    let rand-money  random-float 1000
-     set starting-money 10 * rand-money
-    ]
-    if(tier = 2)
-    [
-    let rand-money  random-float 1000
-     set starting-money 5 * rand-money
-    ]if(tier = 3)
-    [
-    let rand-money  random-float 1000
-     set starting-money 2.5 * rand-money
-    ]
-    let tier-1-count count racing-teams with[tier = 1]
-    let random-list (range tier-1-count)
-    let random-list2 (range tier-1-count)
-    foreach random-list [x -> set random-list lput x random-list2 ]
-
-
-    ;;; Tier 1
-    ask racing-teams with [tier = 1]
-    [
-      if( empty? random-list2  = false)
+       if(counts mod 2 > 0 and counts = 0)
       [
-      let ind1 one-of range length random-list2
-        set list1Vals item ind1 random-list2
+        set team-no 10
 
-      set team-no  list1Vals
-      set random-list2 remove-item ind1 random-list2
-    ]
-    ]
-
-    let tier-2-count count racing-teams with[tier = 2]
-    set random-list (range tier-2-count)
-    set random-list2 (range tier-2-count)
-    foreach random-list [x -> set random-list lput x random-list2 ]
-    ;;;; Tier 2
-
-    ask racing-teams with [tier = 2]
-    [
-      if( empty? random-list2  = false)
-      [
-      let ind1 one-of range length random-list2
-      set list1Vals item ind1 random-list2
-
-      set team-no  list1Vals
-      set random-list2 remove-item ind1 random-list2
-      ]
-    ]
-    ;;;; Tier 3
-    let tier-3-count count racing-teams with[tier = 3]
-    let random-list-t3 (range tier-3-count)
-    let random-list2-t3(range tier-3-count)
-    foreach random-list-t3 [x -> set random-list lput x random-list2 ]
-     ask racing-teams with [tier = 3]
-    [
-      if( empty? random-list2  = false)
-      [
-      let ind1 one-of range length random-list2
-       set list1Vals item ind1 random-list2
-
-      set team-no  list1Vals
-      set random-list2 remove-item ind1 random-list2
       ]
     ]
 
-    set tbr ((random-float 1 / tier))
+
+
+
+
+
+
+
+    set tbr ((random-float 1 / my-tier))
     while[sponsor-appeal > 100]
     [
-      set sponsor-appeal random 100 + tbr + (1 / tier)
+      set sponsor-appeal random 100 + tbr + (1 / my-tier)
     ]
     set technology-level (1 / log starting-money 10) * ((tbr) * (1 / (log starting-money 10)))
+
+  set supplier-quality random 10
+  set car-quality 100
+    set memory-size 10
+    set lap-history n-values (memory-size * 2) [random 100]
+    set total-score (car-quality + technology-level + sponsor-appeal + starting-money)^ tbr
+    set label who
   ]
 
 
+
+
+
 end
+to setup-drivers
+  create-drivers  (2 * num-of-teams)
+  ask drivers
+  ;;; Setting of Base Stats ;;;
+  [
+    set color red
+    setxy random-xcor random-ycor
+
+    set experience random 100
+    set loyalty random 100
+    set driver-skill random 100
+    set connected 1
+    set grassroot false
+    create-links-to n-of 1 other racing-teams [ tie ]
+  ]
+end
+to-report  look-for-decisions
+
+  let decision-plus-range n-values decision-width [random 10]
+  let decision-minus-range n-values decision-width [random-float -10]
+  let decision-range-complete sentence decision-plus-range decision-minus-range
+  report one-of decision-range-complete
+
+
+
+
+end
+
+
+
 
 to update-race
   [
@@ -262,32 +272,71 @@ to update-race
   ]
 end
 
-;to update-racing-teams
- ; [
-  ;  ask racing-teams
-   ; [
-    ;  if(gen = 1)
-     ; [
-      ;  set tech-level (1/log((starting-money 10)) * ((tbr) * 1/(log(starting-money 10))) ;; exponential growth def for tech-level
-      ;]
+to update-racing-teams
+ask racing-teams
+ [
+    set technology-level technology-level + look-for-decisions
+   set total-score (car-quality + technology-level + sponsor-appeal + starting-money)
+]
+end
 
-
-     ; if(gen > starting_gen)
-    ; [
-     ;set tech-level (tech-level * performance-effects)
-    ;]
-
-
-     ; set gen  (gen + 1)
-      ;]
-
-    ;]
-;end
-
-to-report sim-race
-
+to update-generation
+  let boolean-value random 2
+  if(boolean-value = 1)
   [
+  ask  racing-teams with-min[total-score]
+  [
+      ask links [
+      let my-connections both-ends
+      let connection  my-connections  with [member? self drivers]
+      let connection-2 my-connections with[member? self drivers]
+
+      if( connection = connection-2)
+      [
+      while[connection-2 = connection]
+      [
+
+let connection-3 one-of my-connections with[member? self drivers]
+          set disconnected-drivers sentence connection connection-3
+      ]
+      ]
+      if( connection != connection-2)
+    [
+     set disconnected-drivers sentence connection connection-2
+      ]
+      ]
+
+
+      ask disconnected-drivers
+    [
+        set connected 0
+        set grassroot false
+      ]
+      die
+      ]
+    let hiring-decision random 2
+   if(hiring-decision = 1)
+   [
+      hatch-racing-teams 1
+      [
+
+      ]
+    ]
+    ]
+
+
+
+
+
+end
+
+to  sim-race
+  ask racing-teams
+  [
+
   ]
+
+
 
 
 end
@@ -297,13 +346,12 @@ end
   report x
 
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
-222
-22
-647
-448
+585
+10
+1010
+436
 -1
 -1
 12.64
@@ -313,8 +361,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-1
-1
+0
+0
 1
 -16
 16
@@ -327,20 +375,20 @@ ticks
 30.0
 
 CHOOSER
-12
-25
-150
-70
+0
+340
+155
+385
 Authority-Style
 Authority-Style
 "Agressive" "Balanced" "Lenient"
 1
 
 PLOT
-681
-37
-881
-187
+1668
+340
+1868
+490
 Competiveness Chart
 NIL
 NIL
@@ -355,10 +403,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles"
 
 PLOT
-687
-258
-887
-408
+1633
+133
+1833
+283
 Competiveness Over Generations
 NIL
 NIL
@@ -373,10 +421,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles"
 
 PLOT
-933
-43
-1133
-193
+1470
+165
+1670
+315
 Policy Change Vs Competiveness
 NIL
 NIL
@@ -391,10 +439,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles"
 
 PLOT
-938
-260
-1138
-410
+1699
+313
+1899
+463
 Technology Level vs Competiveness
 NIL
 NIL
@@ -406,13 +454,13 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot count turtles"
+"default" 1.0 0 -16777216 true "" "plot mean[technology-level] of racing-teams"
 
 PLOT
-1171
-52
-1371
-202
+1301
+7
+1501
+157
 Amount Of Money Vs Technology Level(Generations)
 NIL
 NIL
@@ -424,29 +472,30 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot count turtles"
+"default" 1.0 0 -16777216 true "" "plot sum [starting-money] of racing-teams"
+"pen-1" 1.0 0 -7500403 true "" "plot sum [technology-level] of racing-teams"
 
 SLIDER
-12
-70
-124
-103
+0
+30
+135
+63
 num-of-teams
 num-of-teams
 0
 20
-10.0
+2.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-21
-212
-221
-362
-Team Plots
+290
+50
+480
+200
+Global Technology Level
 NIL
 NIL
 0.0
@@ -455,25 +504,154 @@ NIL
 10.0
 true
 false
-"" ""
+"ask racing-teams\n[\ncreate-temporary-plot-pen (word \"Agent\" (who))\nset-plot-pen-color (range 1 255)\n\n]" "ask racing-teams\n[\nset-current-plot-pen (word \"Agent\"(who))\nset-plot-pen-color black\nplot technology-level\nset-plot-pen-color green\nplot total-score\n]\n\n"
 PENS
-"default" 1.0 0 -16777216 true "" "plot count racing_teams with [tier = 2]"
-"pen-1" 1.0 0 -7500403 true "" "plot count racing_teams with[tier = 3]"
 
 SLIDER
-17
-112
-190
-145
+0
+90
+135
+123
 decision-width
 decision-width
 0
 100
-10.0
+100.0
 1
 1
 NIL
 HORIZONTAL
+
+SLIDER
+0
+60
+135
+93
+tier-range
+tier-range
+2
+6
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+0
+380
+155
+413
+grassroot-hiring-rate
+grassroot-hiring-rate
+0
+1
+0.28
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+0
+410
+160
+443
+hiring-rate
+hiring-rate
+0
+1
+0.26
+0.01
+1
+NIL
+HORIZONTAL
+
+BUTTON
+415
+385
+478
+418
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+MONITOR
+205
+210
+357
+255
+Best Agent
+[who] of racing-teams with-max[total-score]
+1
+1
+11
+
+TEXTBOX
+295
+20
+565
+66
+Global Measurement
+20
+0.0
+1
+
+TEXTBOX
+295
+35
+480
+53
+----------------------------------------------
+11
+0.0
+1
+
+TEXTBOX
+25
+5
+175
+31
+Parameters\n---------
+11
+0.0
+1
+
+MONITOR
+375
+215
+522
+260
+Best Technology Agents
+sort [who] of racing-teams with[technology-level > mean sort [technology-level] of racing-teams]
+0
+1
+11
+
+BUTTON
+300
+375
+362
+408
+setup
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

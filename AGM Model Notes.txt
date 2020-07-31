@@ -3,4 +3,7 @@ AGM Model
 2) Kinda of tech tree
 3) Simulation of Lap Times
 4) Agent indepdently genereating strategies, to improve / maximise a particular function, 
-5)
+5) Explore Dynamic Equilibrium
+6) Simulate teams dying
+7) Effect of diminishing returns, news straetiges
+8) Long-term Investment ( resource allocation strategies)
