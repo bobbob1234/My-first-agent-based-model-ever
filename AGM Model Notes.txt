@@ -7,3 +7,7 @@ AGM Model
 6) Simulate teams dying
 7) Effect of diminishing returns, news straetiges
 8) Long-term Investment ( resource allocation strategies)
+9) Change random decisions -> into evolutionray programming/genetic algos
+10) http://www2.econ.iastate.edu/tesfatsi/abmread.htm#Readings
+
+11) https://www.perlmonks.org/?node_id=298877
