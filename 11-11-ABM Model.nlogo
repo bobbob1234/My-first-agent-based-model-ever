@@ -93,14 +93,28 @@ to setup
 end
 
 to go
-  update-racing-teams
   let current-ticks ticks
-  ;if(ticks mod 2 = 0)
-  ;[
- ;update-generation
-  ;]
   ;update-race
- ; update-driver-pool
+   if(ticks mod 21 = 0)
+  [
+ update-generation
+  ]
+  if(ticks mod 21 = 0)
+  [
+  update-racing-teams
+  ]
+  if(ticks mod 2100 = 0)
+  [
+  update-driver-pool
+  retire-driver-pool
+
+  ]
+
+  setup-plots
+  update-plots
+
+
+
 
 
   tick
@@ -172,7 +186,7 @@ end
 
 to init-racing-teams
 
-set pcolor white
+
   set color green
   set color-plot item 0 n-of  1 (range 0 139)
   setxy random-xcor random-ycor
@@ -308,6 +322,14 @@ to setup-drivers
 
 end
 
+to hire-new-drivers
+
+  ask racing-teams with [count my-links < link-limit]
+  [
+   let x link-limit - count my-links
+    create-links-to n-of  (link-limit - count my-links)  drivers with[count my-links = 0 ] [tie]
+    ]
+end
 to create-decision-space
 
 end
@@ -342,68 +364,80 @@ to update-race
 end
 
 to update-racing-teams
-ask racing-teams
+  ask racing-teams
  [
     set technology-level technology-level + look-for-decisions
    set total-score (car-quality + technology-level + sponsor-appeal + starting-money)
 
 ]
+   ask racing-teams with [count my-links = 0]
+  [
+    hire-new-drivers
+
+  ]
+
+
 end
 
 to update-generation
-
-
+let boolean-decision random 2
+  if(boolean-decision = 1)
+  [
   ask  racing-teams with-min[total-score]
   [
-    let disconnect-list2[0 1]
-    foreach disconnect-list2
-    [
-      x ->
-      ask  my-links [
 
-      let point-1 end1
-
-       set disconnect-list replace-item x disconnect-list2 point-1
-
-      ]
-    ]
-       ask disconnect-list
-    [
-        set connected 0
-        set grassroot false
-      ]
-
-
-
-
-
-
-
-
-
-    let boolean-decision random 2
-    if(boolean-decision = 1)
-    [
       die
+   ]
 
 
 
 
-      hatch-racing-teams 1
-      [
+
+    create-racing-teams 1
+    ask racing-teams with [ durability-array = 0]
+    [
        set newly-hatched true
        setup-hatched-racing-teams
-      ]
-    ]
-    ]
+     ]
+  ]
 
+end
 
+  to update-driver-pool
+  while
+
+  create-drivers  (2 * num-of-teams)
+  ask drivers
+  ;;; Setting of Base Stats ;;;
+  [
+    set color red
+    setxy random-xcor random-ycor
+
+    set experience random 100
+    set loyalty random 100
+    set driver-skill random 100
+    set connected 0
+    set grassroot false
+  ]
 
 
 
 
 
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 to  sim-race
   ask racing-teams
@@ -423,13 +457,13 @@ end
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-585
-10
-1010
-436
+565
+15
+1013
+464
 -1
 -1
-12.64
+13.33333333333334
 1
 10
 1
