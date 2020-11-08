@@ -1,112 +1,106 @@
 extensions[
   array
   matrix
+  table
 ]
 
 
 breed[racing-teams race-team]
 breed[drivers driver]
-breed[authorities authority]
+;breed[authorities authority]
 
 
-globals
-[
-  z ;; cross product initalized to zero
-  my-tiers
-  range-var
-  memory-size
-  disconnect-list
-  link-limit
-  global-matrix
-  g-1
-  g-2
-  g-3
-  g-4
-
-
-
-
-]
+;globals
+;[
+;
+;]
 racing-teams-own
 [
   strategy ;; virtually strategic choices looking to maximise technology_level , car quality, winnings
   car-quality ;; assume that every team has same quality
-  technology-level ;; measure of work on car, access to knowledge,, closely correlated to tech_breakthrough_rate
-  team-history ;; history of team over cycles(seasons) + generations(races)
-  my-tier ;; based on winnings, select three my-tiers that best describes a racing team
-  sponsor-appeal ;; random at first, but can be weighted on team-history,my-tier and winnings
-  supplier-quality ;;
-  tbr ;; speed of innovation
-  starting-money ;; initalize a variable to store a numerical value.
-  money-holding;; money held at one-point
-  research-conducted;;
-
-  grid ;; starting_position, variable over race
-  team-no ;; number of team max(10)
-  gen;; Generation iteration
-  performance-effects
-  lap-history
-  links-contained;; netlogo variable, used to record links that are attached to specefic agent
-  total-score ; sum of car-quality + tech-level + sponsor-appeal + starting-money
-  starting-gen;
-  gen-current;
-  newly-hatched;
-  durability-array ;; R&D improves effiency , bounded from 0 to 1
-  speed-array ;; R&D improves speed , bounded from 0 to 1
-  effiency-array ;; R&D improves effiency, bounded from 0 to 1
-  other-effects-array ;;  random function , bounded from 0 to 1
-  impact-array ; sum of all other arrays, bounded from 0 to limit n f(d,s,e,ot)
-  color-plot
+  budget
+  development-func
+  morale
+  upgrade rate ; initalized as a floating point number between 0 and 1 per race
+  design-strategy
 
 ]
 
 drivers-own
 [
+  age
+  driver-rating
   experience
-  loyalty
-  driver-skill  ;; a random function, but increases over a combination of experience + wins
-  driver-history
-  connected
-  grassroot
+  ability
+  racecraft
+  marketability
+  morale
+  driver-performance
+
 
 ]
 
 
 
-patches-own[
-  track_flag
-]
-to startup
-  setup
-end
+;to startup
+;  setup
+;end
 
 to setup
-  ca
-  set link-limit 2
-  produce-track
-  setup-authority
-  setup-racing-teams
-  set global-matrix matrix:from-row-list [[3 5] [0 1]]
+  setup-tracks
   setup-drivers
-  layout-spring racing-teams links 1 10 1
+  ;ca
+  ;set link-limit 2
+  ;produce-track
+  ;create-track-data
+  ;setup-authority
+  ;setup-racing-teams
+  ;set global-matrix matrix:from-row-list [[3 5] [0 1]]
+  ;layout-spring racing-teams links 1 10 1
   reset-ticks
 end
+to setup-tracks
+  let track_id_list n-values num-of-tracks [ x -> x + 1]
+  let track_effects_list n-values num-of-tracks [random 100]
+  let dict table:make
+  table:put dict "key" track_id_list
+  table:put dict "effects" track_effects_list
+  show dict
+
+end
+
+to setup-drivers
+
+  create-drivers  (2 * num-of-teams)
+  ask drivers
+  ;;; Setting of Base Stats ;;;
+  [
+    set color red
+    setxy random-xcor random-ycor
+   set age 18
+   set  driver-rating  false
+   set experience random 100
+  set ability random 100
+  set racecraft ability + experience
+;marketability
+;  morale
+;  driver-performance
+;    create-links-to n-of 1 other racing-teams [ tie ]
+  ]
+
+end
+
 
 to go
   let current-ticks ticks
   ;update-race
    if(ticks mod 21 = 0)
   [
- update-generation
-  ]
-  if(ticks mod 21 = 0)
-  [
-  update-racing-teams
-  ]
-  if(ticks mod 2100 = 0)
-  [
-  update-driver-pool
-  retire-driver-pool
+; update-generation
+;   update-racing-teams
+;  ;search-develop
+;  update-driver-pool
+ ; retire-driver-pool
 
   ]
 
@@ -119,27 +113,27 @@ to go
 
   tick
 end
-to-report cross [x y]
-  report (x - z) * (y - z) - (x - x) * (y - z) ;; 3D cross-product, but defined in 2D
+;to-report cross [x y]
+ ; report (x - z) * (y - z) - (x - x) * (y - z) ;; 3D cross-product, but defined in 2D
   	
 
 
-end
+;end
 
-to produce-track
-  set z 0
-  ask up-to-n-of 20 patches
-  [
+;to produce-track
+ ; set z 0
+  ;ask up-to-n-of 20 patches
+  ;[
     ;set pcolor gray
     ;set track_flag 1
     ;set heading 0
 
-  ]
-  let active_patches  patches  with [track_flag = 1]
-  let convex_list_input  sort-on [pxcor]active_patches
- let U_list []
- let L_list[]
- let sz 0
+  ;]
+  ;let active_patches  patches  with [track_flag = 1]
+  ;let convex_list_input  sort-on [pxcor]active_patches
+ ;let U_list []
+ ;let L_list[]
+ ;let sz 0
  ; foreach convex_list_input
  ;[
     ;while(sz > = 2 and cross(U_list[sz -2],U_list[sz -1]) <= 0)
@@ -156,7 +150,7 @@ to produce-track
  ;   ]
   ;]
  ; ]
-end
+;end
 
    to setup-authority
 
@@ -184,248 +178,242 @@ end
 
 end
 
-to init-racing-teams
+;to init-racing-teams
+;
+;
+;  set color green
+;  set color-plot item 0 n-of  1 (range 0 139)
+;  setxy random-xcor random-ycor
+;    set my-tier one-of (range range-var tier-range)
+;    set starting-gen 0
+;    set newly-hatched false
+; let random-var median (list 10 ((random-normal 10.1 5.2)) 15)
+; set starting-money (1 / my-tier) * ((random-var)^(tier-range - my-tier))
+; set tbr ((random-float 1 / my-tier))
+;   set sponsor-appeal random 100 + tbr + (1 / my-tier)
+;
+;    set technology-level (1 / log starting-money 10) * ((tbr) * (1 / (log starting-money 10)))
+;
+;  set supplier-quality random 10
+;  set car-quality 100
+;    set memory-size 10
+;    set lap-history n-values (memory-size * 2) [random 100]
+;    set total-score (car-quality + technology-level + sponsor-appeal + starting-money)^ tbr
+;    set label who
+;    set team-no who
+;
+;  set decision-array fill-matrix decision-width 1 [ -> random-float 0.01]
+;
+;
+;
+;
+;
+;end
+;to setup-global-matrix
+;
+;  let temp-matrix fill-matrix (decision-width * num-of-teams)  1 [ -> random-float 0.01]
+;  set global-matrix temp-matrix
+;
+;end
+
+
+
+;to-report compute-decision-space-racing-teams
+;   let temp-list matrix:to-row-list global-matrix ;; converts the matrix to a list
+;  let random-index-range (range range-var (round((decision-width * num-of-teams) * search-space-sharing-proportion)))
+;  foreach random-index-range
+;  [
+;    x ->
+;    set temp-list remove-item x temp-list ;; the new row is removed to the list
+;  ]
+;  let space-share (round((decision-width * num-of-teams) * search-space-sharing-proportion))
+;  let space-share2 space-share * 2
+;  let global-last-rows (range space-share space-share2)
+;  foreach global-last-rows
+;  [
+;    let rand-number  random-float 0.01
+;       set temp-list lput  rand-number temp-list
+;    ]
+;    report  temp-list
+;
+;
+;
+;
+;end
+
+;to setup-racing-teams
+;  set range-var 1
+;  create-racing-teams num-of-teams [ init-racing-teams]
+;
+;
+;
+;
+;
+;
+;
+;end
+;
+;to  setup-hatched-racing-teams
+;  ask racing-teams with [newly-hatched = true]
+;  [
+;    init-racing-teams
+;
+;    set starting-gen starting-gen + 1
+;    set newly-hatched true
+;  ]
+;
+;
+;end
+
+
+;  ask racing-teams with [count my-links > link-limit]
+;  [
+;
+;      ask n-of (count my-links - link-limit) my-links [die]
+;
+;  ]
+;
+;  ask racing-teams with [count my-links < link-limit]
+;  [
+;   let x link-limit - count my-links
+;    create-links-to n-of  (link-limit - count my-links)  drivers with[count my-links = 0 ] [tie]
+;    ]
+
 
 
-  set color green
-  set color-plot item 0 n-of  1 (range 0 139)
-  setxy random-xcor random-ycor
-    set my-tier one-of (range range-var tier-range)
-    set starting-gen 0
-    set newly-hatched false
- let random-var median (list 10 ((random-normal 10.1 5.2)) 15)
- set starting-money (1 / my-tier) * ((random-var)^(tier-range - my-tier))
- set tbr ((random-float 1 / my-tier))
-   set sponsor-appeal random 100 + tbr + (1 / my-tier)
 
-    set technology-level (1 / log starting-money 10) * ((tbr) * (1 / (log starting-money 10)))
 
-  set supplier-quality random 10
-  set car-quality 100
-    set memory-size 10
-    set lap-history n-values (memory-size * 2) [random 100]
-    set total-score (car-quality + technology-level + sponsor-appeal + starting-money)^ tbr
-    set label who
-    set team-no who
 
-  let d (range range-var decision-width)
 
-  set durability-array fill-matrix decision-width 1 [ -> random-float 0.01]
-  set speed-array  fill-matrix decision-width 1 [ -> random-float 0.01]
-  set other-effects-array fill-matrix decision-width 1 [ -> random-float 0.01]
-  set effiency-array fill-matrix decision-width 1[ -> random-float 0.01]
-  let sum-of-parts-array matrix:plus durability-array speed-array
-  let penul-sum-array matrix:plus sum-of-parts-array other-effects-array
-  set impact-array matrix:plus effiency-array penul-sum-array
 
 
-
-
-end
-to setup-global-matrix
-
-  set g-1 fill-matrix (decision-width * num-of-teams)  1 [ -> random-float 0.01]
-  set g-2  fill-matrix (decision-width * num-of-teams) 1 [ -> random-float 0.01]
-  set g-3 fill-matrix (decision-width * num-of-teams) 1 [ -> random-float 0.01]
-  set g-4 fill-matrix (decision-width * num-of-teams) 1[ -> random-float 0.01]
-  let g-5 matrix:plus g-1 g-2
-  let g-6 matrix:plus g-5 g-3
-  let g-7 matrix:plus g-6 g-4
-  set global-matrix g-7
-
-end
-
-
-
-to-report matrix-swap
-   let temp-list matrix:to-row-list global-matrix ;; converts the matrix to a list
-  let random-index-range (range range-var (round((decision-width * num-of-teams) * search-space-sharing-proportion)))
-  foreach random-index-range
-  [
-    x ->
-    set temp-list remove-item x temp-list ;; the new row is added to the list
-  ]
-  let global-last-rows (range (round(decision-width * search-space-sharing-proportion)) decision-width)
-
- ;foreach global-last-rows
- ; [
-  ;  x ->
-   ; ask racing-teams
-    ;[
-     ; set list (durability-array speed-array effiency-array other-effects-array impact-array) replace-item x temp-list  x
-    ;]
-  ;]
-
-
-
-end
-
-to setup-racing-teams
-  set range-var 1
-  create-racing-teams num-of-teams [ init-racing-teams]
-
-
-
-
-
-
-
-end
-
-to  setup-hatched-racing-teams
-  ask racing-teams with [newly-hatched = true]
-  [
-    init-racing-teams
-
-    set starting-gen starting-gen + 1
-    set newly-hatched true
-  ]
-
-
-end
-
-to setup-drivers
-  create-drivers  (2 * num-of-teams)
-  ask drivers
-  ;;; Setting of Base Stats ;;;
-  [
-    set color red
-    setxy random-xcor random-ycor
-
-    set experience random 100
-    set loyalty random 100
-    set driver-skill random 100
-    set connected 1
-    set grassroot false
-    create-links-to n-of 1 other racing-teams [ tie ]
-  ]
-
-
-  ask racing-teams with [count my-links > link-limit]
-  [
-
-      ask n-of (count my-links - link-limit) my-links [die]
-
-  ]
-
-  ask racing-teams with [count my-links < link-limit]
-  [
-   let x link-limit - count my-links
-    create-links-to n-of  (link-limit - count my-links)  drivers with[count my-links = 0 ] [tie]
-    ]
-
-
-
-
-
-
-
-end
-
-to hire-new-drivers
-
-  ask racing-teams with [count my-links < link-limit]
-  [
-   let x link-limit - count my-links
-    create-links-to n-of  (link-limit - count my-links)  drivers with[count my-links = 0 ] [tie]
-    ]
-end
-to create-decision-space
-
-end
-
-to-report  look-for-decisions
-
-  let decision-plus-range n-values decision-width [random 10]
-  let decision-minus-range n-values decision-width [random-float -10]
-  let decision-range-complete sentence decision-plus-range decision-minus-range
-
-  report one-of decision-range-complete
-
-
-
-
-end
-
-
-
-
-
-to-report fill-matrix [n m generator]
-  report matrix:from-row-list n-values n [n-values m [runresult generator]]
-end
-
-
-
-to update-race
-  [
-
-  ]
-end
-
-to update-racing-teams
-  ask racing-teams
- [
-    set technology-level technology-level + look-for-decisions
-   set total-score (car-quality + technology-level + sponsor-appeal + starting-money)
-
-]
-   ask racing-teams with [count my-links = 0]
-  [
-    hire-new-drivers
-
-  ]
-
-
-end
-
-to update-generation
-let boolean-decision random 2
-  if(boolean-decision = 1)
-  [
-  ask  racing-teams with-min[total-score]
-  [
-
-      die
-   ]
-
-
-
-
-
-    create-racing-teams 1
-    ask racing-teams with [ durability-array = 0]
-    [
-       set newly-hatched true
-       setup-hatched-racing-teams
-     ]
-  ]
-
-end
-
-  to update-driver-pool
-  while
-
-  create-drivers  (2 * num-of-teams)
-  ask drivers
-  ;;; Setting of Base Stats ;;;
-  [
-    set color red
-    setxy random-xcor random-ycor
-
-    set experience random 100
-    set loyalty random 100
-    set driver-skill random 100
-    set connected 0
-    set grassroot false
-  ]
-
-
-
-
-
-end
-
+;to hire-new-drivers
+;
+;  ask racing-teams with [count my-links < link-limit]
+;  [
+;   let x link-limit - count my-links
+;    create-links-to n-of  (link-limit - count my-links)  drivers with[count my-links = 0 ] [tie]
+;    ]
+;end
+
+
+;to-report  look-for-decisions
+
+ ; let decision-plus-range n-values decision-width [random 10]
+  ;let decision-minus-range n-values decision-width [random-float -10]
+  ;let decision-range-complete sentence decision-plus-range decision-minus-range
+
+  ;report one-of decision-range-complete
+
+
+
+
+;end
+
+;to  look-for-decisions
+;
+;if(selection-replacement = "Random")
+;[
+;
+;]
+;
+;if(selection-replacement = "Absolute")
+;[
+;
+;]
+;
+;if(selection-replacement = "Roulette")
+;[
+;
+;]
+;
+;if(selection-replacement = "Rank")
+;[
+;
+;]
+;
+;if(selection-replacement = "Informed")
+;[
+;
+;]
+;
+;end
+
+
+
+
+;to-report fill-matrix [n m generator]
+;  report matrix:from-row-list n-values n [n-values m [runresult generator]]
+;end
+;
+;
+;
+;to update-race
+;  [
+;
+;  ]
+;end
+;
+;to update-racing-teams
+;  ask racing-teams
+; [
+;    set technology-level 10 ;; look-for-decisions
+;   set total-score (car-quality + technology-level + sponsor-appeal + starting-money)
+;
+;]
+;   ask racing-teams with [count my-links = 0]
+;  [
+;    hire-new-drivers
+;
+;  ]
+;
+;
+;end
+;
+;to update-generation
+;let boolean-decision random 2
+;  if(boolean-decision = 1)
+;  [
+;  ask  racing-teams with-min[total-score]
+;  [
+;
+;      die
+;   ]
+;
+;
+;
+;
+;
+;    create-racing-teams 1
+;    ask racing-teams with [ technology-level = 0]
+;    [
+;       set newly-hatched true
+;       setup-hatched-racing-teams
+;     ]
+;  ]
+;
+;end
+
+;  to update-driver-pool
+;
+;
+;  create-drivers  (2 * num-of-teams)
+;  ask drivers
+;  ;;; Setting of Base Stats ;;;
+;  [
+;    set color red
+;    setxy random-xcor random-ycor
+;
+;    set experience random 100
+;
+;  ]
+;
+;
+;
+;
+;
+;end
+;
 
 
 
@@ -491,7 +479,7 @@ CHOOSER
 Authority-Style
 Authority-Style
 "Agressive" "Balanced" "Lenient"
-1
+0
 
 PLOT
 1668
@@ -593,7 +581,7 @@ num-of-teams
 num-of-teams
 0
 20
-10.0
+16.0
 1
 1
 NIL
@@ -640,7 +628,7 @@ tier-range
 tier-range
 2
 6
-5.0
+3.0
 1
 1
 NIL
@@ -781,7 +769,7 @@ search-space-sharing-proportion
 search-space-sharing-proportion
 0
 1
-0.15
+0.0
 0.01
 1
 NIL
@@ -796,7 +784,7 @@ decision-generation-limit
 decision-generation-limit
 0
 100000
-1000.0
+0.0
 1000
 1
 NIL
@@ -822,10 +810,25 @@ CHOOSER
 588
 484
 633
-selection-and-replacement
-selection-and-replacement
+selection-replacement
+selection-replacement
 "Random" "Absolute" "Roulette" "Rank" "Informed"
 0
+
+SLIDER
+0
+95
+130
+128
+num-of-tracks
+num-of-tracks
+0
+10
+10.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
