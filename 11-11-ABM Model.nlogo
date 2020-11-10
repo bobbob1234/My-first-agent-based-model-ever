@@ -10,10 +10,13 @@ breed[drivers driver]
 ;breed[authorities authority]
 
 
-;globals
-;[
-;
-;]
+globals
+[
+exp_table
+set_exp_0
+track_counter
+
+]
 racing-teams-own
 [
   strategy ;; virtually strategic choices looking to maximise technology_level , car quality, winnings
@@ -36,6 +39,7 @@ drivers-own
   marketability
   morale
   driver-performance
+  hatched?
 
 
 ]
@@ -47,9 +51,10 @@ drivers-own
 ;end
 
 to setup
+  clear-all
   setup-tracks
   setup-drivers
-  ;ca
+  setup-counters
   ;set link-limit 2
   ;produce-track
   ;create-track-data
@@ -65,7 +70,8 @@ to setup-tracks
   let dict table:make
   table:put dict "key" track_id_list
   table:put dict "effects" track_effects_list
-  show dict
+  set exp_table dict
+
 
 end
 
@@ -79,9 +85,20 @@ to setup-drivers
     setxy random-xcor random-ycor
    set age 18
    set  driver-rating  false
-   set experience random 100
-  set ability random 100
-  set racecraft ability + experience
+
+    set experience  set_exp_o
+    set ability  random 100
+    let avg_exp mean experience
+   set racecraft  ability + avg_exp
+     hatch-drivers  1
+    [
+      let x_c xcor
+      let y_c ycor
+      setxy x_c + 0.5 y_c + 0.5
+      set hatched? true
+      set color blue
+;      set hidden? true
+  ]
 ;marketability
 ;  morale
 ;  driver-performance
@@ -90,19 +107,52 @@ to setup-drivers
 
 end
 
+to setup-counters
+  set track_counter 0
+end
+ to update-counters
+  set track_counter track_counter + 1
+end
+to-report copy_global_table [orig]
+  let copy table:make
+
+  foreach ( table:keys orig ) [
+    [key] -> table:put copy key ( table:get orig key )
+  ]
+  report copy
+end
+
+to-report set_exp_o
+let up_exp_table table:get exp_table "effects"
+set up_exp_table  map [i -> 0] up_exp_table
+
+ report up_exp_table
+end
+
+;to-report update-drivers
+;  ;; update driver rating + experience + racecraft
+; ask drivers
+;  set racecraft ability + experience
+;
+;
+;end
 
 to go
-  let current-ticks ticks
-  ;update-race
-   if(ticks mod 21 = 0)
+  if (ticks = num-of-tracks * num-of-tracks) [stop]
+
+  update-counters
+  if(track_counter mod 10 = 0)
   [
+    set track_counter 0
+  ]
+  ;update-race
+
 ; update-generation
 ;   update-racing-teams
 ;  ;search-develop
 ;  update-driver-pool
  ; retire-driver-pool
 
-  ]
 
   setup-plots
   update-plots
@@ -581,7 +631,7 @@ num-of-teams
 num-of-teams
 0
 20
-16.0
+3.0
 1
 1
 NIL
