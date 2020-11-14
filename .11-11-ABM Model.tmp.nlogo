@@ -207,11 +207,11 @@ to-report set_exp_o
  let up_exp_table  copy_global_table exp_table
 let keys_found  table:keys up_exp_table
 foreach(keys_found) [ x ->
-    table:put up_exp_table x 0
+    table:put up_exp_table keys_foun 0
   ]
 
 set up_exp_table  up_exp_table
-
+print up_exp_table
 
  report up_exp_table
 end
@@ -968,7 +968,7 @@ num-of-tracks
 num-of-tracks
 0
 1000
-1000.0
+10.0
 1
 1
 NIL
