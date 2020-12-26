@@ -7,6 +7,7 @@ extensions[
 
 breed[racing-teams race-team]
 breed[drivers driver]
+breed[cars car]
 ;breed[authorities authority]
 
 
@@ -22,17 +23,28 @@ current_track
 track_ids
 track_effects
 literal_one
+z
+patch_list
+point_list
+init_double
+point_frame
+
 ]
 racing-teams-own
 [
   strategy ;; virtually strategic choices looking to maximise technology_level , car quality, winnings
-  car-quality ;; assume that every team has same quality
   budget
   development-func
   morale
-  upgrade rate ; initalized as a floating point number between 0 and 1 per race
-  design-strategy
+  upgrade-rate ; initalized as a floating point number between 0 and 1 per race
+  design-strategy ; net change of performance(history), prediction
 
+]
+
+patches-own
+[
+  track_no
+  track_age
 ]
 
 drivers-own
@@ -47,10 +59,10 @@ drivers-own
   driver-performance
   hatched?
   track_history
+  experience_current
 
 
 ]
-
 
 
 ;to startup
@@ -59,8 +71,17 @@ drivers-own
 
 to setup
   clear-all
+;  load-tracks
+  set init_double (2 * num-of-teams)
+  generate-points
   setup-tracks
   setup-drivers
+  setup-teams
+  join-teams
+  ;join-cars
+  setup-cars
+  global-hide
+  init-experience-current
   setup-counters
   setup-agent-exp-table
   ;set link-limit 2
@@ -72,6 +93,101 @@ to setup
   ;layout-spring racing-teams links 1 10 1
   reset-ticks
 end
+to generate-points
+
+  ask up-to-n-of (random 30) patches
+  [
+        set pcolor white
+  ]
+  set point_list[]
+  set patch_list patches with [pcolor = white]
+  let patch_length (range literal_one (count patch_list))
+  let pxcor_input [pxcor] of patch_list
+  let pycor_input [pycor] of patch_list
+  foreach (patch_length) [ x ->
+  let x_item item x pxcor_input
+  let y_item item x pycor_input
+  let point_collate list x_item y_item
+  set point_list lput point_collate point_list
+
+  ]
+;    insert-item x point_list [pycor] of  item x patch_list
+
+
+
+
+end
+
+
+to-report lex_sort
+  report sort-by [[a b] -> first a < first b] point_frame
+end
+
+to produce-track-convexhull
+  generate-points
+  set point_frame sentence  point_list point_list
+  let length_of_points length (point_list)
+  let k 2
+   ifelse length_of_points < 3
+  [
+   stop
+  ]
+  [
+    let sorted_random_points    lex_sort
+
+  foreach(range literal_one length_of_points) [ x ->
+    let one item (k - 2) point_frame
+    let two item (k - 1) point_frame
+    let reduce_frame sentence one two
+    set  z  reduce sentence reduce_frame
+      while[k >= 2 and  ( reduce [[a b c d] ->  (a - 0)  * (d - 0) - (b - 0) * (c - 0)] z <= 0 )]
+    [
+      set k (k - 1)
+      let points item x point_list
+      let index (k + 1)
+   let replaced replace-item index point_frame points
+   print replaced
+
+    ]
+      ]
+  ]
+
+
+
+end
+
+;  point_size
+;end
+;generate-points
+;  ask  patches with [reduce and (map = x random_xpoints_list
+;  [
+;    set pcolor gray
+    ;set track_flag 1
+    ;set heading 0
+
+  ;]
+  ;let active_patches  patches  with [track_flag = 1]
+  ;let convex_list_input  sort-on [pxcor]active_patches
+ ;let U_list []
+ ;let L_list[]
+ ;let sz 0
+ ; foreach convex_list_input
+ ;[
+    ;while(sz > = 2 and cross(U_list[sz -2],U_list[sz -1]) <= 0)
+    ;[
+      ;U_list
+
+    ;2]
+  ;]
+  ;foreach L_list
+  ;[
+   ; while(length(U_list) > = 2 and cross(U_list[-2],U_list[-1]) <= 0)
+    ;[
+;
+ ;   ]
+  ;]
+ ; ]
+;end
 to setup-tracks
   set literal_one 1
   let track_id_list n-values num-of-tracks [ x -> x + 1]
@@ -96,12 +212,12 @@ end
 
 to setup-drivers
 
-  create-drivers  (2 * num-of-teams)
+  create-drivers  init_double
   ask drivers
   ;;; Setting of Base Stats ;;;
   [
     set color red
-    setxy random-xcor random-ycor
+    setxy ((max-pxcor - random-xcor + min-pycor)) ((max-pycor - random-ycor) + min-pycor)
    set age 18
    set  driver-rating  false
 
@@ -110,22 +226,65 @@ to setup-drivers
     let avg_exp 0
    set racecraft  ability + avg_exp
     set track_history empty_list
+
      hatch-drivers  1
     [
       let x_c xcor
       let y_c ycor
-      setxy x_c + 0.5 y_c + 0.5
+      setxy x_c  y_c
       set hatched? true
       set color blue
       set label "clone"
 ;      set hidden? true
   ]
+
+
 ;marketability
 ;  morale
 ;  driver-performance
 ;    create-links-to n-of 1 other racing-teams [ tie ]
   ]
 
+end
+
+to setup-teams
+    create-racing-teams num-of-teams
+  ask racing-teams
+  [
+
+    set budget random 10000
+    set morale 0 ;; funciton(team performance,upgrade rate)
+    set development-func 0
+    set upgrade-rate random-float 1
+    set design-strategy 0
+
+  ]
+end
+
+to join-teams
+  ask drivers
+  [
+  create-links-to n-of 1 other racing-teams [ tie ]
+
+  ]
+end
+to setup-cars
+  create-cars init_double
+  ask cars
+  [
+   set color black
+  ]
+end
+to  global-hide
+ask racing-teams
+  [
+    set hidden? true
+  ]
+
+  ask links
+  [
+   ; set hidden? true
+  ]
 end
 
 to setup-counters
@@ -138,7 +297,7 @@ end
 end
 
 to view_track_range
-let track_view  n-values num-of-tracks [(random  tracks-in-play) + 1]
+let track_view  n-values tracks-in-play [(random  num-of-tracks) + 1]
 let track_view2 sort-by < track_view
 set track_range remove-duplicates track_view2
 
@@ -159,8 +318,14 @@ to update-driver-track-history
 end
 to setup-agent-exp-table
   set who_table table:make
-  table:put who_table "who_number" sort  [who] of drivers
-  table:put who_table "experience_of_agent" [experience] of drivers
+  let who_range sort [who] of drivers
+  foreach(who_range) [ index ->
+  table:put who_table "who_number" index
+  ]
+  foreach(who_range) [ index ->
+  table:put who_table "experience_of_agent" [experience] of driver index
+  ]
+
 end
 
 to-report track-in-play
@@ -178,17 +343,33 @@ end
 ;;foreach(who_range) [[ table:get who_table who_range] -> (exp_update +  item track_id
 ;
 ;end
-;to create_experience_history_tables
-;
 ;to update driver-experience-on-track
 ;let ticks
 ;; freq * performance
 
+to init-experience-current
+  ask drivers
+ [
+    set experience_current []
+  ]
+
+end
 to gain-driver-experience
 let performance_prediction random 100
 let agent_range track_range
 let track_count track_counter
 let track_seen item track_count track_range
+let effect_value table:get exp_table track_seen
+let difference_list list(performance_prediction)(effect_value)
+let difference_value  reduce - difference_list
+ask drivers
+[
+set experience_current lput  difference_value experience_current
+
+  ]
+
+
+
 end
 
 to-report empty_list
@@ -234,6 +415,7 @@ to go
   if(ticks > 1)
   [
     update-driver-track-history
+    gain-driver-experience
   ]
  ; gain_experience
   update-counters
@@ -257,43 +439,9 @@ to go
 
   tick
 end
-;to-report cross [x y]
- ; report (x - z) * (y - z) - (x - x) * (y - z) ;; 3D cross-product, but defined in 2D
-  	
 
 
-;end
 
-;to produce-track
- ; set z 0
-  ;ask up-to-n-of 20 patches
-  ;[
-    ;set pcolor gray
-    ;set track_flag 1
-    ;set heading 0
-
-  ;]
-  ;let active_patches  patches  with [track_flag = 1]
-  ;let convex_list_input  sort-on [pxcor]active_patches
- ;let U_list []
- ;let L_list[]
- ;let sz 0
- ; foreach convex_list_input
- ;[
-    ;while(sz > = 2 and cross(U_list[sz -2],U_list[sz -1]) <= 0)
-    ;[
-      ;U_list
-
-    ;2]
-  ;]
-  ;foreach L_list
-  ;[
-   ; while(length(U_list) > = 2 and cross(U_list[-2],U_list[-1]) <= 0)
-    ;[
-;
- ;   ]
-  ;]
- ; ]
 ;end
 
    to setup-authority
@@ -597,7 +745,7 @@ GRAPHICS-WINDOW
 -1
 13.33333333333334
 1
-10
+9
 1
 1
 1
@@ -772,7 +920,7 @@ tier-range
 tier-range
 2
 6
-3.0
+4.0
 1
 1
 NIL
@@ -981,9 +1129,9 @@ SLIDER
 163
 tracks-in-play
 tracks-in-play
-2
+1
 num-of-tracks
-5.0
+30.0
 1
 1
 NIL
