@@ -486,7 +486,6 @@ to develop-track-on-fly
   [
    set point_frame table:get convex_table track_num
    resize-patch-map
-   create-temp-patches  length(point_frame)
    foreach(range 0 length(point_frame)) [ x ->
 let index (x + 1) / (x + 1)
 

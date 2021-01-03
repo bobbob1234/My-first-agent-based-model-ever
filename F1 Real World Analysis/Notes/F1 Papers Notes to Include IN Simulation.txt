@@ -1,0 +1,11 @@
+Measuring Competive Balance in F1
+
+- within-race competitive balance
+1) Number of Lead Changes
+2) Difference between starting and finishing position 
+- within-season competitive balance
+- inter-season competitive balance
+
+
+
+
