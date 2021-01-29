@@ -4,16 +4,20 @@ extensions[
   table
 ]
 
+undirected-link-breed [twolinks twolink]
+directed-link-breed [onelinks onelink]
 
 breed[racing-teams race-team]
 breed[drivers driver]
 breed[cars car]
 breed[temp-patches temp-patch]
+breed[track-patches track-patch]
 ;breed[authorities authority]
 
 
 globals
 [
+temp-patch-agent-list
 convex_table
 exp_table
 who_table
@@ -32,6 +36,7 @@ init_double
 point_frame
 testval1
 testval2
+start_track_point
 
 ]
 racing-teams-own
@@ -77,8 +82,9 @@ to setup
   clear-all
 ;  load-tracks
   set init_double (2 * num-of-teams)
-  generate-points
-  produce-track-convexhull
+  ;generate-points
+  ;produce-track-convexhull
+  produce-track
   setup-track-data
   setup-drivers
   setup-teams
@@ -98,6 +104,7 @@ to setup
   ;layout-spring racing-teams links 1 10 1
   reset-ticks
 end
+
 
 to generate-points
 
@@ -213,6 +220,34 @@ set point_frame sublist point_frame 0 4
 
 
 end
+to produce-track
+
+
+  ask patches
+  [
+      if((pxcor >= -8 and pxcor <= 8) and  (pycor = 2))
+    [
+        set pcolor white
+    ]
+
+        if((pxcor >= -8 and pxcor <= 8) and  (pycor = -8))
+    [
+        set pcolor white
+    ]
+
+     if((pycor >= -8 and pycor <= 2) and  (pxcor = -8))
+    [
+        set pcolor white
+    ]
+
+
+      if((pycor >= -8 and pycor <= 2) and  (pxcor = 8))
+    [
+        set pcolor white
+    ]
+
+  ]
+end
 
 to setup-track-data
   set literal_one 1
@@ -233,13 +268,13 @@ to setup-track-data
   ]
 
 
-   foreach(track_id_list) [ x ->
-    generate-points
-  produce-track-convexhull
-   let convex_hull_points point_frame
-    table:put convex x  point_frame
-
-  ]
+;   foreach(track_id_list) [ x ->
+;    generate-points
+;  produce-track-convexhull
+;   let convex_hull_points point_frame
+;    table:put convex x  point_frame
+;
+;  ]
 
  table:remove dict  (range  1 num-of-tracks)
 
@@ -301,7 +336,8 @@ end
 to join-teams
   ask drivers
   [
-  create-links-to n-of 1 other racing-teams [ tie ]
+  create-onelinks-to n-of 1 other racing-teams [ tie ]
+
 
   ]
 end
@@ -318,9 +354,14 @@ ask racing-teams
     set hidden? true
   ]
 
-  ask links
+  ask drivers
   [
-   ; set hidden? true
+    set hidden? true
+  ]
+
+  ask onelinks
+  [
+    set hidden? true
   ]
 end
 
@@ -453,7 +494,8 @@ to go
   [
     update-driver-track-history
     gain-driver-experience
-    develop-track-on-fly
+    ;develop-track-on-fly
+    ;start-teams
 
   ]
  ; gain_experience
@@ -486,21 +528,29 @@ to develop-track-on-fly
   [
    set point_frame table:get convex_table track_num
    resize-patch-map
-   create-temp-patches  length(point_frame)
    foreach(range 0 length(point_frame)) [ x ->
-let index (x + 1) / (x + 1)
-
-create-racing-teams num-of-teams
+let index x
 let frame item index point_frame
 let x_frame  max(sublist frame 0 1)
 let y_frame max (sublist frame 1 2)
-  ask temp-patch (x + 1)
+  create-temp-patches 1
        [
           set xcor x_frame
           set ycor y_frame
+        if(x > 1)
+        [
+        create-twolinks-with other temp-patches
+      ]
       ]
     ]
   ]
+end
+to start-teams
+  let index length(point_frame)
+  let random_index random  index
+  set start_track_point item random_index point_frame
+
+
 end
 ;end
 
@@ -1196,6 +1246,17 @@ num-of-tracks
 1
 NIL
 HORIZONTAL
+
+MONITOR
+1020
+10
+1092
+55
+Lap_Count
+10
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
