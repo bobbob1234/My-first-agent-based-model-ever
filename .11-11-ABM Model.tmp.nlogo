@@ -38,7 +38,7 @@ testval1
 testval2
 spawn_point
 starting_point
-marker_point
+ma
 future_set
 ]
 racing-teams-own
@@ -92,7 +92,7 @@ to setup
 ;  load-tracks
   set init_double (2 * num-of-teams)
   set starting_point patch 8 1
-  set marker_point patch  -8  -1
+  set marker_point patch  -  -1
   ;generate-points
   ;produce-track-convexhull
   produce-track
@@ -611,9 +611,10 @@ to lap-increment
     set lap_count lap_count + 1
     set lap_check true
   ]
-    if(future_patch = marker_point and lap_check = true)
+    if(future_patch = starting_point and lap_check = false)
   [
-    set lap_check false
+    set lap_count lap_count + 1
+    set lap_check true
   ]
   ]
   ]
