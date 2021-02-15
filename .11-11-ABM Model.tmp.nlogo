@@ -38,8 +38,9 @@ testval1
 testval2
 spawn_point
 starting_point
-ma
+marker_point
 future_set
+
 ]
 racing-teams-own
 [
@@ -78,6 +79,9 @@ drivers-own
  testing_patch
  lap_count
  lap_check
+ distance_point
+ position_value
+ race_team
 
 
 ]
@@ -92,7 +96,7 @@ to setup
 ;  load-tracks
   set init_double (2 * num-of-teams)
   set starting_point patch 8 1
-  set marker_point patch  -  -1
+  set marker_point patch  -8  -1
   ;generate-points
   ;produce-track-convexhull
   produce-track
@@ -370,9 +374,26 @@ to join-teams
   ask drivers
   [
   create-onelinks-to n-of 1 other racing-teams [ tie ]
-
-
+  inherit-drivers-racing-teams
   ]
+
+end
+
+to inherit-drivers-racing-teams
+  let agent_links [my-links] of self
+ let x ""
+ let color_team ""
+   ask agent_links
+    [
+      set x other-end
+      ask x
+      [
+        set color_team color
+      ]
+    ]
+    set race_team  x
+    set color color_team
+
 end
 to setup-cars
   create-cars init_double
@@ -526,7 +547,7 @@ to go
 
  race
  lap-increment
-
+ calc-position
 
     ;update-driver-track-history
     ;gain-driver-experience
@@ -597,6 +618,26 @@ to start-teams
 
 
 end
+to calc-position
+
+ask drivers[
+set distance_point distance starting_point * (lap_count + 1)
+  ]
+     let position_val 0
+     let agent_set turtle-set ( sort-on [distance_point] drivers)
+
+
+    ask agent_set
+  [
+      set position_value position_val
+      set position_val position_val + 1
+
+  ]
+
+
+end
+to overtake-increment
+e
 to lap-increment
   ask drivers [
   if(ticks = 0)
@@ -611,10 +652,9 @@ to lap-increment
     set lap_count lap_count + 1
     set lap_check true
   ]
-    if(future_patch = starting_point and lap_check = false)
+    if(future_patch = marker_point and lap_check = true)
   [
-    set lap_count lap_count + 1
-    set lap_check true
+    set lap_check false
   ]
   ]
   ]
@@ -737,18 +777,6 @@ report future_patch
 end
 
 
-
-
-
-
-
-
-
-
-
-
-
-;end
 
    to setup-authority
 
@@ -1179,7 +1207,7 @@ num-of-teams
 num-of-teams
 0
 20
-16.0
+10.0
 1
 1
 NIL
@@ -1211,7 +1239,7 @@ decision-width
 decision-width
 0
 100
-33.0
+51.0
 1
 1
 NIL
@@ -1284,8 +1312,8 @@ MONITOR
 290
 362
 335
-Best Agent
-[who] of racing-teams with-max[total-score]
+Lead Driver
+[who] of drivers with-min[position_value]
 1
 1
 11

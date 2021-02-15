@@ -40,6 +40,7 @@ spawn_point
 starting_point
 marker_point
 future_set
+
 ]
 racing-teams-own
 [
@@ -78,6 +79,9 @@ drivers-own
  testing_patch
  lap_count
  lap_check
+ distance_point
+ position_value
+ race_team
 
 
 ]
@@ -370,9 +374,26 @@ to join-teams
   ask drivers
   [
   create-onelinks-to n-of 1 other racing-teams [ tie ]
-
-
+  inherit-drivers-racing-teams
   ]
+
+end
+
+to inherit-drivers-racing-teams
+  let agent_links [my-links] of self
+ let x ""
+ let color_team ""
+   ask agent_links
+    [
+      set x other-end
+      ask x
+      [
+        set color_team color
+      ]
+    ]
+    set race_team  x
+    set color color_team
+
 end
 to setup-cars
   create-cars init_double
@@ -526,7 +547,7 @@ to go
 
  race
  lap-increment
-
+ calc-position
 
     ;update-driver-track-history
     ;gain-driver-experience
@@ -596,6 +617,26 @@ to start-teams
 ;    let reduce_frame sentence one two
 
 
+end
+to calc-position
+
+ask drivers[
+set distance_point distance starting_point * (lap_count + 1)
+  ]
+     let position_val 0
+     let agent_set turtle-set ( sort-on [distance_point] drivers)
+
+
+    ask agent_set
+  [
+      set position_value position_val
+      set position_val position_val + 1
+
+  ]
+
+
+end
+to overtake-increment
 end
 to lap-increment
   ask drivers [
@@ -736,18 +777,6 @@ report future_patch
 end
 
 
-
-
-
-
-
-
-
-
-
-
-
-;end
 
    to setup-authority
 
@@ -1178,7 +1207,7 @@ num-of-teams
 num-of-teams
 0
 20
-16.0
+10.0
 1
 1
 NIL
@@ -1210,7 +1239,7 @@ decision-width
 decision-width
 0
 100
-33.0
+51.0
 1
 1
 NIL
@@ -1283,8 +1312,8 @@ MONITOR
 290
 362
 335
-Best Agent
-[who] of racing-teams with-max[total-score]
+Lead Driver
+[who] of drivers with-min[position_value]
 1
 1
 11
