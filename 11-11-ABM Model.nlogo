@@ -17,7 +17,7 @@ breed[track-patches track-patch]
 
 globals
 [
-temp-patch-agent-list
+;;temp-patch-agent-list
 convex_table
 exp_table
 who_table
@@ -34,12 +34,22 @@ patch_list
 point_list
 init_double
 point_frame
+
+
+;;; Misc Globals ;;;;
+time
+;;; Testing Globals ;;;
 testval1
 testval2
+ ;;;; Agent Globals ;;;
 spawn_point
 starting_point
 marker_point
 future_set
+
+
+;;; Coefficents ;;;;
+base_team_effect
 
 ]
 racing-teams-own
@@ -79,9 +89,15 @@ drivers-own
  testing_patch
  lap_count
  lap_check
+ time_check
  distance_point
  position_value
  race_team
+ head_p
+ tail_p
+ overtakes
+ time_agent
+ expected_performance
 
 
 ]
@@ -101,6 +117,7 @@ to setup
   ;produce-track-convexhull
   produce-track
   setup-track-data
+  setup-global-variables
   setup-drivers
   start-teams
   setup-teams
@@ -121,6 +138,11 @@ to setup
   reset-ticks
 end
 
+to setup-global-variables
+  set base_team_effect 0.86
+  set time 0
+
+end
 
 to generate-points
 
@@ -327,14 +349,26 @@ to setup-drivers
     set color black
     setxy ((max-pxcor - random-xcor + min-pycor)) ((max-pycor - random-ycor) + min-pycor)
    set age 18
-   set  driver-rating  false
 
     set experience  set_exp_o
     set ability  random 100
     let avg_exp 0
    set racecraft  ability + avg_exp
+   set marketability random 100
+   set morale random 100
     set track_history empty_list
-
+    set  driver-rating   abs((1 - (ability ^ (1 / ((100  - (marketability + 1))) + 1)))) + ( 1 / (100 - morale))
+    set driver-rating precision (1 / (1 + exp (-(driver-rating)))) 3
+    ifelse(model-type = "random")
+    [
+      let wt weight-percentile
+      set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
+    ]
+    [
+      let wt base_team_effect
+      set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
+    ]
+    set time_agent []
 
 ;     hatch-drivers  1
 ;    [
@@ -349,7 +383,6 @@ to setup-drivers
 
 
 ;marketability
-;  morale
 ;  driver-performance
 ;    create-links-to n-of 1 other racing-teams [ tie ]
   ]
@@ -538,28 +571,24 @@ end
 ;end
 
 to go
-  ;if (ticks = num-of-tracks * num-of-tracks) [stop]
-  ;if(track_counter = length track_range)
-  ;[
-   ; set track_counter 0
-    ;view_track_range
-  ;]
+if(track_counter = length track_range)
+  [
+    stop
+ ]
+ let numlaps lap-set
+ set current_track track-set
+ if(numlaps > max([lap_count] of drivers))
+[
+simulate-function
+]
+ if(numlaps = max([lap_count] of drivers))
+[
+update-function
+;;record-data-function
+reset-function
+set numlaps 0
 
- race
- lap-increment
- calc-position
-
-    ;update-driver-track-history
-    ;gain-driver-experience
-    ;develop-track-on-fly
-    ;start-teams
-
-  ;]
- ; gain_experience
-  ;update-counters
-
-
-  ;update-race
+]
 
 ; update-generation
 ;   update-racing-teams
@@ -576,6 +605,23 @@ to go
 
 
   tick
+end
+to reset-function
+start-teams
+end
+to simulate-function
+  race
+ lap-increment
+ calc-position
+ overtake-increment
+
+end
+
+to update-function
+  update-driver-track-history
+ ;gain-driver-experience
+ update-counters
+ start-teams
 end
 
 to develop-track-on-fly
@@ -611,6 +657,8 @@ to start-teams
     set heading north
     set current_patch patch 8 1
     set previous_patch patch 8 0
+     set lap_count 0
+   set lap_check false
   ]
 ;  let one item (k - 2) point_frame
 ;   let two item (k - 1) point_frame
@@ -618,25 +666,74 @@ to start-teams
 
 
 end
-to calc-position
 
+to-report lap-set
+  let index track_counter
+  let track item index track_range
+  let laps table:get exp_table track
+
+  report laps
+
+
+
+end
+
+to-report track-set
+  let index track_counter
+  let track item index track_range
+  report track
+
+
+
+end
+to calc-position
+let position_val 0
 ask drivers[
+if(lap_count = 0)
+[
 set distance_point distance starting_point * (lap_count + 1)
   ]
-     let position_val 0
-     let agent_set turtle-set ( sort-on [distance_point] drivers)
-
-
-    ask agent_set
+    if(lap_count >= 1)
+   [
+     set distance_point (lap_count + 1) * position_value
+  ]]
+ foreach sort-on [distance_point] drivers
   [
+     x ->
+    ask x[
       set position_value position_val
-      set position_val position_val + 1
+    ]
+    set position_val position_val + 1
 
-  ]
+
+    ]
 
 
 end
 to overtake-increment
+  ask drivers [
+    if(ticks mod  1 = 0)
+    [
+      set head_p position_value
+    ]
+    if((ticks  mod 2 = 0))
+    [
+     set tail_p position_value
+    ]
+    if( head_p != tail_p and  head_p > tail_p)
+    [
+      let overtake_count (head_p - tail_p)
+      set overtakes overtake_count + overtakes
+    ]
+  ]
+end
+to time-keeper
+ ask drivers[
+      let lap_current  lap_count
+      let time-temp ticks
+      let temp-list list  lap_current time-temp
+      set time_agent lput temp-list time_agent
+  ]
 end
 to lap-increment
   ask drivers [
@@ -649,17 +746,21 @@ to lap-increment
   [
   if(future_patch = starting_point and lap_check = false)
   [
-    set lap_count lap_count + 1
+  set lap_count lap_count + 1
     set lap_check true
+
+
   ]
     if(future_patch = marker_point and lap_check = true)
   [
+    time-keeper
     set lap_check false
   ]
   ]
   ]
 end
 to race
+  ;; to simulate movement ;;
   ask drivers
   [
 
@@ -686,7 +787,7 @@ if(ticks = 0)
 ;    ask testval1[print pxcor print pycor]
 ;    print "New Candidates"
 ;    ask testval2[print pxcor print pycor]
-  fd random-float 1
+  fd random-float 1 ;;; replace here with unique modelling function
   set current_patch patch-here
   if(current_patch != testing_patch)
   [
@@ -1216,18 +1317,18 @@ HORIZONTAL
 PLOT
 290
 50
-560
-275
-Global Technology Level
+540
+170
+Overtakes Distribution
 NIL
 NIL
 0.0
 10.0
 0.0
-10.0
+50.0
 true
 true
-"ask racing-teams\n[\ncreate-temporary-plot-pen (word \"Agent\" (who + 1))\nset-plot-pen-color color-plot\n]" "\nask  racing-teams\n[\nset-current-plot-pen (word \"Agent\"(who + 1))\n\nplot technology-level\n\n]\n\n"
+"ask drivers\n[\ncreate-temporary-plot-pen (word \"Agent\" (who + 1))\nset-plot-pen-color color\n]" "\nask  drivers\n[\nset-current-plot-pen (word \"Agent\"(who + 1))\n\nplot overtakes\n\n]\n\n"
 PENS
 
 SLIDER
@@ -1254,7 +1355,7 @@ tier-range
 tier-range
 2
 6
-4.0
+2.0
 1
 1
 NIL
@@ -1284,7 +1385,7 @@ hiring-rate
 hiring-rate
 0
 1
-0.26
+0.22
 0.01
 1
 NIL
@@ -1354,7 +1455,7 @@ MONITOR
 517
 345
 Best Technology Agents
-sort [who] of racing-teams with[technology-level > mean sort [technology-level] of racing-teams]
+[who] of drivers with-max[distance_point]
 0
 1
 11
@@ -1450,7 +1551,7 @@ num-of-tracks
 num-of-tracks
 0
 1000
-17.0
+200.0
 1
 1
 NIL
@@ -1465,7 +1566,7 @@ tracks-in-play
 tracks-in-play
 1
 num-of-tracks
-9.0
+71.0
 1
 1
 NIL
@@ -1477,10 +1578,46 @@ MONITOR
 1092
 55
 Lap_Count
-10
+max([lap_count] of drivers)
 17
 1
 11
+
+MONITOR
+1020
+65
+1077
+110
+Track
+current_track
+17
+1
+11
+
+SLIDER
+0
+495
+172
+528
+weight-percentile
+weight-percentile
+0
+1
+0.471
+0.001
+1
+%
+HORIZONTAL
+
+CHOOSER
+890
+480
+1028
+525
+model-type
+model-type
+"base" "random"
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1865,6 +2002,47 @@ NetLogo 6.1.1
     </enumeratedValueSet>
     <enumeratedValueSet variable="selection-and-replacement">
       <value value="&quot;Random&quot;"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="grassroot-hiring-rate">
+      <value value="0.28"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-of-teams">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tier-range">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Authority-Style">
+      <value value="&quot;Agressive&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="decision-generation-limit">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="selection-replacement">
+      <value value="&quot;Random&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="search-space-sharing-proportion">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="mutation-chance">
+      <value value="92"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tracks-in-play">
+      <value value="71"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-of-tracks">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="decision-width">
+      <value value="51"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="hiring-rate">
+      <value value="0.26"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>

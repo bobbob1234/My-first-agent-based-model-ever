@@ -11,3 +11,10 @@ AGM Model
 10) http://www2.econ.iastate.edu/tesfatsi/abmread.htm#Readings
 
 11) https://www.perlmonks.org/?node_id=298877
+
+Driver Rating 
+- Chatoic Graph
+- Insensitive to inital conditons
+- Aperodici Behaviour
+- Expected performance
+- 1 - x^1/y + 1 - (log(1/R)))
