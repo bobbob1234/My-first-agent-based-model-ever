@@ -2,6 +2,7 @@ extensions[
   array
   matrix
   table
+  profiler
 ]
 
 undirected-link-breed [twolinks twolink]
@@ -37,7 +38,7 @@ point_frame
 
 
 ;;; Misc Globals ;;;;
-time
+
 ;;; Testing Globals ;;;
 testval1
 testval2
@@ -58,8 +59,10 @@ racing-teams-own
   budget
   development-func
   morale
+  legacy
   upgrade-rate ; initalized as a floating point number between 0 and 1 per race
   design-strategy ; net change of performance(history), prediction
+  team_rating
 
 ]
 
@@ -79,7 +82,6 @@ drivers-own
   marketability
   morale
   driver-performance
-  hatched?
   track_history
   experience_current
   future_patch
@@ -97,8 +99,9 @@ drivers-own
  tail_p
  overtakes
  time_agent
+ time_var
  expected_performance
-
+ decision-array
 
 ]
 
@@ -140,7 +143,6 @@ end
 
 to setup-global-variables
   set base_team_effect 0.86
-  set time 0
 
 end
 
@@ -357,7 +359,7 @@ to setup-drivers
    set marketability random 100
    set morale random 100
     set track_history empty_list
-    set  driver-rating   abs((1 - (ability ^ (1 / ((100  - (marketability + 1))) + 1)))) + ( 1 / (100 - morale))
+    set  driver-rating   abs((1 - (ability ^ (1 / ((100  - (marketability + 1)) + 1) + 1)))) + ( 1 / (100 - morale))
     set driver-rating precision (1 / (1 + exp (-(driver-rating)))) 3
     ifelse(model-type = "random")
     [
@@ -369,6 +371,8 @@ to setup-drivers
       set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
     ]
     set time_agent []
+    set time_var 0
+    init-decision-space
 
 ;     hatch-drivers  1
 ;    [
@@ -404,28 +408,65 @@ to setup-teams
 end
 
 to join-teams
-  ask drivers
-  [
-  create-onelinks-to n-of 1 other racing-teams [ tie ]
+
+    let team-size num-of-teams
+    let connections 2
+    while[(count links) < (connections * team-size)]
+    [
+    foreach sort-on [who] racing-teams
+    [
+      x ->
+      if((count[my-links] of x)< 2)
+      [
+        let driver_range sort [who] of drivers
+        let random_driver one-of driver_range
+        ask driver random_driver
+        [
+          if((count[my-links] of self) < 2)
+       [
+     let agent-set turtle-set x
+  create-onelinks-to  agent-set [ tie ]
+    ]
+    ]
+      ]
+  ]
+  ]
+  ask drivers[
+
   inherit-drivers-racing-teams
   ]
 
-end
 
+end
 to inherit-drivers-racing-teams
   let agent_links [my-links] of self
  let x ""
  let color_team ""
+ let rating driver-rating
    ask agent_links
     [
       set x other-end
+
       ask x
       [
-        set color_team color
-      ]
-    ]
-    set race_team  x
-    set color color_team
+       set color_team color
+        if(team_rating = 0)
+        [
+         set team_rating (rating + team_rating)
+       ]
+       if(team_rating != 0)
+        [
+         set team_rating (rating * team_rating)
+       ]
+
+    ]]
+  if(is-number? color_team)
+  [
+  set color color_team
+  ]
+  set race_team  x
+
+
 
 end
 to setup-cars
@@ -438,7 +479,7 @@ end
 to  global-hide
 ask racing-teams
   [
-    set hidden? true
+    set hidden? false
   ]
 
   ask drivers
@@ -448,7 +489,7 @@ ask racing-teams
 
   ask onelinks
   [
-    set hidden? true
+    set hidden? false
   ]
 end
 
@@ -733,6 +774,10 @@ to time-keeper
       let time-temp ticks
       let temp-list list  lap_current time-temp
       set time_agent lput temp-list time_agent
+      if(lap_count > 0)
+  [
+      set time_var (time-temp) / lap_count
+  ]
   ]
 end
 to lap-increment
@@ -877,7 +922,45 @@ report future_patch
 
 end
 
+to init-decision-space
+  ask drivers [
+ let decision-table table:make
+ let decision-values array:from-list n-values (decision-width + 1) [precision(random-float max-floating-point) 2]
+ let rang (range 0 (decision-width + 1))
+ let sub_list []
+ let counter 1
+ let place_holder 0
+  foreach(rang) [ x ->
+      if(x mod 5 = 0)
+      [
+        if(x = 5)
+        [
+          set place_holder 0
+        ]
+        if( x > 5)
+         [
+          set place_holder x - 5
+         ]
+        foreach(range place_holder (x + 1) )
+        [ i ->
+          let array_index array:item decision-values i
+          set sub_list lput array_index sub_list
+          set testval1 lput array_index sub_list
+          if(i = x)
+            [
+          table:put decision-table counter sub_list
+         set counter counter + 1
+         set sub_list []
+    ]
+        ]
+      ]
+    ]
+    table:remove decision-table 1
+    set decision-array decision-table
 
+
+]
+end
 
    to setup-authority
 
@@ -1336,12 +1419,12 @@ SLIDER
 495
 379
 528
-decision-width
-decision-width
-0
-100
-51.0
-1
+max-floating-point
+max-floating-point
+0.001
+0.99
+0.463
+0.001
 1
 NIL
 HORIZONTAL
@@ -1377,16 +1460,16 @@ NIL
 HORIZONTAL
 
 SLIDER
+405
+395
+565
+428
+decision-width
+decision-width
 0
-410
-160
-443
-hiring-rate
-hiring-rate
-0
-1
-0.22
-0.01
+10000
+200.0
+5
 1
 NIL
 HORIZONTAL
@@ -1618,6 +1701,35 @@ model-type
 model-type
 "base" "random"
 1
+
+PLOT
+280
+170
+540
+295
+timeplot
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot mean[time_var] of drivers"
+
+MONITOR
+1035
+140
+1172
+185
+Unique Decisions
+((decision-width) / 5) + 1
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
