@@ -926,6 +926,7 @@ to init-decision-space
   ask drivers [
  let decision-table table:make
  let decision-values array:from-list n-values (decision-width + 1) [precision(random-float max-floating-point) 2]
+ set testval1 decision-values
  let rang (range 0 (decision-width + 1))
  let sub_list []
  let counter 1
@@ -945,7 +946,6 @@ to init-decision-space
         [ i ->
           let array_index array:item decision-values i
           set sub_list lput array_index sub_list
-          set testval1 lput array_index sub_list
           if(i = x)
             [
           table:put decision-table counter sub_list
@@ -960,6 +960,85 @@ to init-decision-space
 
 
 ]
+end
+to update-decision-space-GA
+  let generation_length 0
+  let magic_number 10
+  let counter 1
+  while[generation_length < magic_number]
+  [
+
+    if(selection-replacement = "random")
+    [
+      let first_ind min table:keys decision-array
+      let end_ind   max table:keys decision-array
+      let decision_table table:make
+      let solution_space up-to-n-of (decision-width / 2) (shuffle (range first_ind end_ind))
+
+      table:clear decision-array
+      foreach((range 0 length(solution_space)))
+      [
+        let value_list item counter solution_space
+        table:put decision-array counter value_list
+        set counter counter + 1
+    ]
+      recombine_solution_space solution_space
+
+  ]
+  ]
+
+end
+
+to-report weighted-average [x y]
+  let wt random-float 1
+  let wt2 (1 - wt)
+  report (wt * x) + (wt2 * y)
+end
+to recombine_solution_space [x]
+  let swap_index 1
+  let rand_index 1
+  let rand_index2 2
+  let solution_length length x
+  let mutation_chance mutation-chance
+  while[swap_index < no-swaps]
+  [
+  set rand_index random length solution_length
+  set rand_index2 random length solution_length
+     if(rand_index = rand_index2)
+      [
+        while[rand_index = rand_index2]
+        [
+           set rand_index random length solution_length
+  set rand_index2 random length solution_length
+    ]
+      ]
+    let val1 table:get decision-array rand_index
+    let val2 table:get decision-array rand_index2
+    let child1 (map (weighted-average val1 val2))
+    let child2 (map (weighted-average val1 val2))
+;    mutate_childs child1 child2
+
+    set child1 map [ i -> i * mutation_chance ] child1
+    set child2 map [ i -> i * mutation_chance ] child2
+
+   set swap_index swap_index + 1
+    ]
+
+
+  let solution_space array:from-list x
+ if(crossover-point = "one-point")
+  [
+  ]
+ if(crossover-point  = "uniform")
+  [
+
+  ]
+  if(crossover-point = "multi-point")
+  [
+  ]
+  if(crossover-point = "arit")
+  [
+  ]
 end
 
    to setup-authority
@@ -1468,7 +1547,7 @@ decision-width
 decision-width
 0
 10000
-200.0
+0.0
 5
 1
 NIL
@@ -1590,8 +1669,8 @@ SLIDER
 544
 459
 577
-decision-generation-limit
-decision-generation-limit
+no-swaps
+no-swaps
 0
 100000
 0.0
@@ -1608,9 +1687,9 @@ SLIDER
 mutation-chance
 mutation-chance
 0
-100
-92.0
 1
+0.5
+0.1
 1
 NIL
 HORIZONTAL
@@ -1730,6 +1809,16 @@ Unique Decisions
 17
 1
 11
+
+CHOOSER
+530
+595
+668
+640
+crossover-point
+crossover-point
+"one-point" "multi-point" "uniform" "average"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -2080,84 +2169,6 @@ NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
-<experiments>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>count turtles</metric>
-    <enumeratedValueSet variable="grassroot-hiring-rate">
-      <value value="0.28"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-of-teams">
-      <value value="10"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tier-range">
-      <value value="5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Authority-Style">
-      <value value="&quot;Balanced&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="decision-generation-limit">
-      <value value="1000"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="search-space-sharing-proportion">
-      <value value="0.15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="mutation-chance">
-      <value value="112.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="hiring-rate">
-      <value value="0.26"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="decision-width">
-      <value value="69"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="selection-and-replacement">
-      <value value="&quot;Random&quot;"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>count turtles</metric>
-    <enumeratedValueSet variable="grassroot-hiring-rate">
-      <value value="0.28"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-of-teams">
-      <value value="10"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tier-range">
-      <value value="4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="Authority-Style">
-      <value value="&quot;Agressive&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="decision-generation-limit">
-      <value value="0"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="selection-replacement">
-      <value value="&quot;Random&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="search-space-sharing-proportion">
-      <value value="0"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="mutation-chance">
-      <value value="92"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tracks-in-play">
-      <value value="71"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-of-tracks">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="decision-width">
-      <value value="51"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="hiring-rate">
-      <value value="0.26"/>
-    </enumeratedValueSet>
-  </experiment>
-</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
