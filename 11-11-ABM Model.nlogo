@@ -63,6 +63,10 @@ racing-teams-own
   upgrade-rate ; initalized as a floating point number between 0 and 1 per race
   design-strategy ; net change of performance(history), prediction
   team_rating
+  decision-array
+  fitness
+  generation
+  explore_rate
 
 ]
 
@@ -101,7 +105,6 @@ drivers-own
  time_agent
  time_var
  expected_performance
- decision-array
 
 ]
 
@@ -372,7 +375,6 @@ to setup-drivers
     ]
     set time_agent []
     set time_var 0
-    init-decision-space
 
 ;     hatch-drivers  1
 ;    [
@@ -403,7 +405,7 @@ to setup-teams
     set development-func 0
     set upgrade-rate random-float 1
     set design-strategy 0
-
+   init-decision-space-GA
   ]
 end
 
@@ -655,11 +657,14 @@ to simulate-function
  lap-increment
  calc-position
  overtake-increment
+;; if season_count > 1)
+ ask racing-teams[update-decision-space-GA]
 
 end
 
 to update-function
   update-driver-track-history
+  ;ask drivers[update-decision-space-GA]
  ;gain-driver-experience
  update-counters
  start-teams
@@ -881,7 +886,7 @@ to-report next-patch
  let prev_set (patch-set (east_prev)(west_prev)(south_prev)(north_prev) (current))
  set spawn_point ( patch-set (east_patch)(north_patch)(west_patch) (south_patch))
   let candidate_locations spawn_point with [pcolor = white]
-set testval1 candidate_locations
+;set testval1 candidate_locations
 ask candidate_locations
  [
 if(member? self prev_set)
@@ -897,7 +902,7 @@ if(member? self prev_set)
   ]
 
 
-set testval2 candidate_locations
+;set testval2 candidate_locations
 let choice one-of  candidate_locations
 set future_patch choice
 
@@ -922,11 +927,10 @@ report future_patch
 
 end
 
-to init-decision-space
-  ask drivers [
+to init-decision-space-GA
+  ask racing-teams [
  let decision-table table:make
  let decision-values array:from-list n-values (decision-width + 1) [precision(random-float max-floating-point) 2]
- set testval1 decision-values
  let rang (range 0 (decision-width + 1))
  let sub_list []
  let counter 1
@@ -962,83 +966,97 @@ to init-decision-space
 ]
 end
 to update-decision-space-GA
+
   let generation_length 0
   let magic_number 10
   let counter 1
-  while[generation_length < magic_number]
-  [
 
     if(selection-replacement = "random")
     [
       let first_ind min table:keys decision-array
       let end_ind   max table:keys decision-array
-      let decision_table table:make
-      let solution_space up-to-n-of (decision-width / 2) (shuffle (range first_ind end_ind))
-
-      table:clear decision-array
-      foreach((range 0 length(solution_space)))
-      [
-        let value_list item counter solution_space
-        table:put decision-array counter value_list
-        set counter counter + 1
-    ]
-      recombine_solution_space solution_space
+     let solution_space  remove-duplicates (up-to-n-of (decision-width / 2) (shuffle (range first_ind end_ind)))
+;      foreach(solution_space)
+;      [
+;      x ->
+;        let value_list item counter solution_space
+;        table:put decision-array x value_list
+;        set counter counter + 1
+;    ]
+    recombine_solution_space solution_space
 
   ]
-  ]
+
 
 end
-
 to-report weighted-average [x y]
   let wt random-float 1
   let wt2 (1 - wt)
-  report (wt * x) + (wt2 * y)
+  let list-length  length x
+  let a map [i -> i * wt] x
+  let b map [i -> i * wt2 ] y
+  let c (up-to-n-of list-length (sentence a b))
+  report c
+end
+to-report logistic-function [x]
+  report (1 / (1 + exp (-(x))))
+end
+to-report tanh[x]
+  report (((exp (2 * x)) - 1))/ ((exp (2 * x)) + 1)
 end
 to recombine_solution_space [x]
-  let swap_index 1
-  let rand_index 1
-  let rand_index2 2
-  let solution_length length x
+  let swap_index 0
+  let x2 x
+  let rand_index one-of x2
+  let rand_index2 one-of x2
+  let solution_length length x2
   let mutation_chance mutation-chance
+  let child_list []
   while[swap_index < no-swaps]
   [
-  set rand_index random length solution_length
-  set rand_index2 random length solution_length
+  set rand_index one-of  x2
+  set rand_index2 one-of x2
+
      if(rand_index = rand_index2)
       [
         while[rand_index = rand_index2]
         [
-           set rand_index random length solution_length
-  set rand_index2 random length solution_length
+           set rand_index one-of  x2
+  set rand_index2 one-of x2
     ]
       ]
     let val1 table:get decision-array rand_index
     let val2 table:get decision-array rand_index2
-    let child1 (map (weighted-average val1 val2))
-    let child2 (map (weighted-average val1 val2))
-;    mutate_childs child1 child2
+    let child1 weighted-average val1 val2
+    let child2 weighted-average val1 val2
 
-    set child1 map [ i -> i * mutation_chance ] child1
-    set child2 map [ i -> i * mutation_chance ] child2
+    if(random-float 1 > mutation_chance)
+    [
+    set child1 map [ i -> i + mutation_chance ] child1
+
+    ]
+    if(random-float 1 > mutation_chance)
+    [
+      set child2 map [ i -> i + mutation_chance ] child1
+    ]
+    set child_list lput child1 child_list
+    set child_list lput child2 child_list
 
    set swap_index swap_index + 1
     ]
+ set testval1 child_list
 
-
-  let solution_space array:from-list x
- if(crossover-point = "one-point")
+  let child_id 0
+  foreach(x2)
   [
+    key  ->
+    let child_value item child_id child_list
+    table:put decision-array  key child_value
+    set child_id random (length child_list)
   ]
- if(crossover-point  = "uniform")
-  [
-
-  ]
-  if(crossover-point = "multi-point")
-  [
-  ]
-  if(crossover-point = "arit")
-  [
-  ]
+  let solution_key one-of x2
+  let solution_array table:get decision-array solution_key
+  set fitness tanh (standard-deviation  solution_array)
 end
 
    to setup-authority
@@ -1502,7 +1520,7 @@ max-floating-point
 max-floating-point
 0.001
 0.99
-0.463
+0.754
 0.001
 1
 NIL
@@ -1547,7 +1565,7 @@ decision-width
 decision-width
 0
 10000
-0.0
+4050.0
 5
 1
 NIL
@@ -1658,7 +1676,7 @@ search-space-sharing-proportion
 search-space-sharing-proportion
 0
 1
-0.0
+0.16
 0.01
 1
 NIL
@@ -1673,7 +1691,7 @@ no-swaps
 no-swaps
 0
 100000
-0.0
+1000.0
 1000
 1
 NIL
@@ -1688,7 +1706,7 @@ mutation-chance
 mutation-chance
 0
 1
-0.5
+0.3
 0.1
 1
 NIL
@@ -1701,7 +1719,7 @@ CHOOSER
 633
 selection-replacement
 selection-replacement
-"Random" "Absolute" "Roulette" "Rank" "Informed"
+"random" "absolute" "roulette" "rank" "informed"
 0
 
 SLIDER
@@ -1772,10 +1790,10 @@ weight-percentile
 HORIZONTAL
 
 CHOOSER
-890
-480
-1028
-525
+695
+507
+833
+552
 model-type
 model-type
 "base" "random"
@@ -1819,6 +1837,43 @@ crossover-point
 crossover-point
 "one-point" "multi-point" "uniform" "average"
 0
+
+PLOT
+1025
+225
+1440
+365
+Fitness Plots
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+true
+"" ""
+PENS
+"Fitness Min" 1.0 0 -16777216 true "" "plot min [fitness] of racing-teams"
+"Fitness Max" 1.0 0 -7500403 true "" "plot max [fitness] of racing-teams"
+"Average Fitness" 1.0 0 -2674135 true "" "plot mean[fitness] of racing-teams"
+
+PLOT
+1027
+367
+1437
+487
+Fitness - Team Plots
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+true
+"ask racing-teams\n[\ncreate-temporary-plot-pen (word \"Team\" (who + 1))\nset-plot-pen-color color\n]" "\nask  racing-teams\n[\nset-current-plot-pen (word \"Team\"(who + 1))\n\nplot fitness\n\n]\n\n"
+PENS
 
 @#$#@#$#@
 ## WHAT IS IT?
