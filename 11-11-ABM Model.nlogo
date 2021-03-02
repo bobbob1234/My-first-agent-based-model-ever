@@ -11,9 +11,10 @@ directed-link-breed [onelinks onelink]
 breed[racing-teams race-team]
 breed[drivers driver]
 breed[cars car]
+breed[collectors collector]
 breed[temp-patches temp-patch]
 breed[track-patches track-patch]
-;breed[authorities authority]
+breed[authorities authority]
 
 
 globals
@@ -107,6 +108,15 @@ drivers-own
  expected_performance
 
 ]
+collectors-own
+[
+  average_overtakes
+  fitness
+  explore_rate
+  avg_performance
+  avg_distance
+  avg_rating
+]
 
 
 ;to startup
@@ -122,23 +132,30 @@ to setup
   ;generate-points
   ;produce-track-convexhull
   produce-track
+
+  ;;; Setup Functions
   setup-track-data
   setup-global-variables
   setup-drivers
-  start-teams
   setup-teams
-  join-teams
-  ;join-cars
   setup-cars
-  global-hide
-  init-experience-current
   setup-counters
   setup-agent-exp-table
+  setup-collectors
+
+
+
+
+  start-teams
+  join-teams
+  ;join-cars
+  global-hide
+  init-experience-current
+
   ;set link-limit 2
   ;produce-track
   ;create-track-data
   ;setup-authority
-  ;setup-racing-teams
   ;set global-matrix matrix:from-row-list [[3 5] [0 1]]
   ;layout-spring racing-teams links 1 10 1
   reset-ticks
@@ -148,7 +165,204 @@ to setup-global-variables
   set base_team_effect 0.86
 
 end
+to setup-cars
+  create-cars init_double
+  ask cars
+  [
+   set color black
+  ]
+end
+to setup-track-data
+  set literal_one 1
+  let track_id_list n-values num-of-tracks [ x -> x + 1]
+  let track_effects_list n-values num-of-tracks [random 100]
+  set track_ids track_id_list
+  set track_effects track_effects_list
+  let dict table:make
+  let convex table:make
+  foreach (track_id_list) [ x ->
+  table:put dict (item (x - 1) track_id_list) track_id_list
 
+  ]
+  let track_effect_range (range literal_one (num-of-tracks + 1 ))
+  foreach(track_effect_range) [ x ->
+    table:put dict x (item (x - 1) track_effects_list)
+
+  ]
+
+
+;   foreach(track_id_list) [ x ->
+;    generate-points
+;  produce-track-convexhull
+;   let convex_hull_points point_frame
+;    table:put convex x  point_frame
+;
+;  ]
+
+ table:remove dict  (range  1 num-of-tracks)
+
+  set convex_table convex
+  set exp_table dict
+end
+
+to setup-drivers
+
+  create-drivers  init_double
+  ask drivers
+  ;;; Setting of Base Stats ;;;
+  [
+    set color black
+    setxy ((max-pxcor - random-xcor + min-pycor)) ((max-pycor - random-ycor) + min-pycor)
+   set age 18
+
+    set experience  set_exp_o
+    set ability  random 100
+    let avg_exp 0
+   set racecraft  ability + avg_exp
+   set marketability random 100
+   set morale random 100
+    set track_history empty_list
+    set  driver-rating   abs((1 - (ability ^ (1 / ((100  - (marketability + 1)) + 1) + 1)))) + ( 1 / (100 - morale))
+    set driver-rating precision (1 / (1 + exp (-(driver-rating)))) 3
+    ifelse(model-type = "random")
+    [
+      let wt weight-percentile
+      set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
+    ]
+    [
+      let wt base_team_effect
+      set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
+    ]
+    set time_agent []
+    set time_var 0
+
+;     hatch-drivers  1
+;    [
+;      let x_c xcor
+;      let y_c ycor
+;      setxy x_c  y_c
+;      set hatched? true
+;      set color blue
+;      set label "clone"
+;;      set hidden? true
+;  ]
+
+
+;marketability
+;  driver-performance
+;    create-links-to n-of 1 other racing-teams [ tie ]
+  ]
+
+end
+
+to setup-teams
+    create-racing-teams num-of-teams
+  ask racing-teams
+  [
+
+    set budget random 10000
+    set morale 0 ;; funciton(team performance,upgrade rate)
+    set development-func 0
+    set upgrade-rate random-float 1
+    set design-strategy 0
+   setup-decision-space-GA
+  ]
+end
+to setup-agent-exp-table
+  set who_table table:make
+  let who_range sort [who] of drivers
+  foreach(who_range) [ index ->
+  table:put who_table "who_number" index
+  ]
+  foreach(who_range) [ index ->
+  table:put who_table "experience_of_agent" [experience] of driver index
+  ]
+
+end
+to setup-counters
+  set track_counter 0
+  set track_base  num-of-tracks
+  view_track_range
+end
+to setup-decision-space-GA
+  ask racing-teams [
+ let decision-table table:make
+ let decision-values array:from-list n-values (decision-width + 1) [precision(random-float max-floating-point) 2]
+ let rang (range 0 (decision-width + 1))
+ let sub_list []
+ let counter 1
+ let place_holder 0
+  foreach(rang) [ x ->
+      if(x mod 5 = 0)
+      [
+        if(x = 5)
+        [
+          set place_holder 0
+        ]
+        if( x > 5)
+         [
+          set place_holder x - 5
+         ]
+        foreach(range place_holder (x + 1) )
+        [ i ->
+          let array_index array:item decision-values i
+          set sub_list lput array_index sub_list
+          if(i = x)
+            [
+          table:put decision-table counter sub_list
+         set counter counter + 1
+         set sub_list []
+    ]
+        ]
+      ]
+    ]
+    table:remove decision-table 1
+    set decision-array decision-table
+
+
+]
+end
+
+to setup-collectors
+  create-collectors  1
+end
+
+to update-collectors
+  ask collectors [
+  set average_overtakes mean [overtakes] of drivers
+  set fitness mean [fitness] of racing-teams
+  ; set explore_rate
+  set avg_distance mean[distance_point] of drivers
+  set avg_rating mean[driver-rating] of drivers
+  set avg_performance mean[expected_performance] of drivers
+  ]
+
+end
+ to setup-authority
+
+  if(Authority-Style = "Agressive")
+    [
+      ;;https://www.econstor.eu/bitstream/10419/195190/1/1662796994.pdf
+      ;; penalize harder - look at overall pace, introduce penalizers for specefic teams
+      ;; generate hard rules
+      ;; 70/30 risk reward ratio
+    ]
+    if(Authority-Style = "Balanced")
+    [
+      ;; penalize balanced - look at overall pace, graudal periods of anti competitveness
+      ;; generate balanced rules
+      ;; 50/50 risk reward ratio
+    ]
+
+
+    if(Authority-Style = "Lenient")
+    [
+      ;; penalize less - look at overall pace, graudal periods of anti competitveness
+      ;; generate rules - influenced by majority voting
+      ;; 30/70 risk reward ratio
+    ]
+
+end
 to generate-points
 
 ;  ask up-to-n-of (random 30) patches
@@ -173,6 +387,7 @@ to generate-points
 
 
 end
+
 
 to resize-patch-map
  ask  patches
@@ -312,102 +527,6 @@ to produce-track
   ]
 end
 
-to setup-track-data
-  set literal_one 1
-  let track_id_list n-values num-of-tracks [ x -> x + 1]
-  let track_effects_list n-values num-of-tracks [random 100]
-  set track_ids track_id_list
-  set track_effects track_effects_list
-  let dict table:make
-  let convex table:make
-  foreach (track_id_list) [ x ->
-  table:put dict (item (x - 1) track_id_list) track_id_list
-
-  ]
-  let track_effect_range (range literal_one (num-of-tracks + 1 ))
-  foreach(track_effect_range) [ x ->
-    table:put dict x (item (x - 1) track_effects_list)
-
-  ]
-
-
-;   foreach(track_id_list) [ x ->
-;    generate-points
-;  produce-track-convexhull
-;   let convex_hull_points point_frame
-;    table:put convex x  point_frame
-;
-;  ]
-
- table:remove dict  (range  1 num-of-tracks)
-
-  set convex_table convex
-  set exp_table dict
-end
-
-to setup-drivers
-
-  create-drivers  init_double
-  ask drivers
-  ;;; Setting of Base Stats ;;;
-  [
-    set color black
-    setxy ((max-pxcor - random-xcor + min-pycor)) ((max-pycor - random-ycor) + min-pycor)
-   set age 18
-
-    set experience  set_exp_o
-    set ability  random 100
-    let avg_exp 0
-   set racecraft  ability + avg_exp
-   set marketability random 100
-   set morale random 100
-    set track_history empty_list
-    set  driver-rating   abs((1 - (ability ^ (1 / ((100  - (marketability + 1)) + 1) + 1)))) + ( 1 / (100 - morale))
-    set driver-rating precision (1 / (1 + exp (-(driver-rating)))) 3
-    ifelse(model-type = "random")
-    [
-      let wt weight-percentile
-      set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
-    ]
-    [
-      let wt base_team_effect
-      set  expected_performance  ((1 - wt) * driver-rating)  + (wt * 5)
-    ]
-    set time_agent []
-    set time_var 0
-
-;     hatch-drivers  1
-;    [
-;      let x_c xcor
-;      let y_c ycor
-;      setxy x_c  y_c
-;      set hatched? true
-;      set color blue
-;      set label "clone"
-;;      set hidden? true
-;  ]
-
-
-;marketability
-;  driver-performance
-;    create-links-to n-of 1 other racing-teams [ tie ]
-  ]
-
-end
-
-to setup-teams
-    create-racing-teams num-of-teams
-  ask racing-teams
-  [
-
-    set budget random 10000
-    set morale 0 ;; funciton(team performance,upgrade rate)
-    set development-func 0
-    set upgrade-rate random-float 1
-    set design-strategy 0
-   init-decision-space-GA
-  ]
-end
 
 to join-teams
 
@@ -471,13 +590,7 @@ to inherit-drivers-racing-teams
 
 
 end
-to setup-cars
-  create-cars init_double
-  ask cars
-  [
-   set color black
-  ]
-end
+
 to  global-hide
 ask racing-teams
   [
@@ -495,11 +608,7 @@ ask racing-teams
   ]
 end
 
-to setup-counters
-  set track_counter 0
-  set track_base  num-of-tracks
-  view_track_range
-end
+
  to update-counters
   set track_counter track_counter + 1
 end
@@ -524,17 +633,7 @@ to update-driver-track-history
 
 
 end
-to setup-agent-exp-table
-  set who_table table:make
-  let who_range sort [who] of drivers
-  foreach(who_range) [ index ->
-  table:put who_table "who_number" index
-  ]
-  foreach(who_range) [ index ->
-  table:put who_table "experience_of_agent" [experience] of driver index
-  ]
 
-end
 
 to-report track-in-play
   report current_track
@@ -825,7 +924,7 @@ if(ticks = 0)
    [
    set previous_patch global_patch
    ]
-  face next-patch
+  face report-next-patch
   ;if(current_patch
 ;    print "Agent No"
 ;    print [who] of self
@@ -849,7 +948,34 @@ if(ticks = 0)
 
 end
 
-to-report next-patch
+
+
+
+to update-decision-space-GA
+
+  let generation_length 0
+  let magic_number 10
+  let counter 1
+
+    if(selection-replacement = "random")
+    [
+      let first_ind min table:keys decision-array
+      let end_ind   max table:keys decision-array
+     let solution_space  remove-duplicates (up-to-n-of (decision-width / 2) (shuffle (range first_ind end_ind)))
+;      foreach(solution_space)
+;      [
+;      x ->
+;        let value_list item counter solution_space
+;        table:put decision-array x value_list
+;        set counter counter + 1
+;    ]
+    recombine_solution_space solution_space
+
+  ]
+
+
+end
+to-report report-next-patch
 
 ;  let choices neighbors with [ pcolor = white ]
 ;  ;; choose the patch closest to the goal, this is the patch the car will move to
@@ -926,70 +1052,7 @@ set future_patch choice
 report future_patch
 
 end
-
-to init-decision-space-GA
-  ask racing-teams [
- let decision-table table:make
- let decision-values array:from-list n-values (decision-width + 1) [precision(random-float max-floating-point) 2]
- let rang (range 0 (decision-width + 1))
- let sub_list []
- let counter 1
- let place_holder 0
-  foreach(rang) [ x ->
-      if(x mod 5 = 0)
-      [
-        if(x = 5)
-        [
-          set place_holder 0
-        ]
-        if( x > 5)
-         [
-          set place_holder x - 5
-         ]
-        foreach(range place_holder (x + 1) )
-        [ i ->
-          let array_index array:item decision-values i
-          set sub_list lput array_index sub_list
-          if(i = x)
-            [
-          table:put decision-table counter sub_list
-         set counter counter + 1
-         set sub_list []
-    ]
-        ]
-      ]
-    ]
-    table:remove decision-table 1
-    set decision-array decision-table
-
-
-]
-end
-to update-decision-space-GA
-
-  let generation_length 0
-  let magic_number 10
-  let counter 1
-
-    if(selection-replacement = "random")
-    [
-      let first_ind min table:keys decision-array
-      let end_ind   max table:keys decision-array
-     let solution_space  remove-duplicates (up-to-n-of (decision-width / 2) (shuffle (range first_ind end_ind)))
-;      foreach(solution_space)
-;      [
-;      x ->
-;        let value_list item counter solution_space
-;        table:put decision-array x value_list
-;        set counter counter + 1
-;    ]
-    recombine_solution_space solution_space
-
-  ]
-
-
-end
-to-report weighted-average [x y]
+to-report report-weighted-average [x y]
   let wt random-float 1
   let wt2 (1 - wt)
   let list-length  length x
@@ -998,10 +1061,10 @@ to-report weighted-average [x y]
   let c (up-to-n-of list-length (sentence a b))
   report c
 end
-to-report logistic-function [x]
+to-report report-logistic-function [x]
   report (1 / (1 + exp (-(x))))
 end
-to-report tanh[x]
+to-report report-tanh[x]
   report (((exp (2 * x)) - 1))/ ((exp (2 * x)) + 1)
 end
 to recombine_solution_space [x]
@@ -1027,8 +1090,8 @@ to recombine_solution_space [x]
       ]
     let val1 table:get decision-array rand_index
     let val2 table:get decision-array rand_index2
-    let child1 weighted-average val1 val2
-    let child2 weighted-average val1 val2
+    let child1 report-weighted-average val1 val2
+    let child2 report-weighted-average val1 val2
 
     if(random-float 1 > mutation_chance)
     [
@@ -1056,66 +1119,9 @@ to recombine_solution_space [x]
   ]
   let solution_key one-of x2
   let solution_array table:get decision-array solution_key
-  set fitness tanh (standard-deviation  solution_array)
+  set fitness report-tanh (standard-deviation  solution_array)
 end
 
-   to setup-authority
-
-  if(Authority-Style = "Agressive")
-    [
-      ;;https://www.econstor.eu/bitstream/10419/195190/1/1662796994.pdf
-      ;; penalize harder - look at overall pace, introduce penalizers for specefic teams
-      ;; generate hard rules
-      ;; 70/30 risk reward ratio
-    ]
-    if(Authority-Style = "Balanced")
-    [
-      ;; penalize balanced - look at overall pace, graudal periods of anti competitveness
-      ;; generate balanced rules
-      ;; 50/50 risk reward ratio
-    ]
-
-
-    if(Authority-Style = "Lenient")
-    [
-      ;; penalize less - look at overall pace, graudal periods of anti competitveness
-      ;; generate rules - influenced by majority voting
-      ;; 30/70 risk reward ratio
-    ]
-
-end
-
-;to init-racing-teams
-;
-;
-;  set color green
-;  set color-plot item 0 n-of  1 (range 0 139)
-;  setxy random-xcor random-ycor
-;    set my-tier one-of (range range-var tier-range)
-;    set starting-gen 0
-;    set newly-hatched false
-; let random-var median (list 10 ((random-normal 10.1 5.2)) 15)
-; set starting-money (1 / my-tier) * ((random-var)^(tier-range - my-tier))
-; set tbr ((random-float 1 / my-tier))
-;   set sponsor-appeal random 100 + tbr + (1 / my-tier)
-;
-;    set technology-level (1 / log starting-money 10) * ((tbr) * (1 / (log starting-money 10)))
-;
-;  set supplier-quality random 10
-;  set car-quality 100
-;    set memory-size 10
-;    set lap-history n-values (memory-size * 2) [random 100]
-;    set total-score (car-quality + technology-level + sponsor-appeal + starting-money)^ tbr
-;    set label who
-;    set team-no who
-;
-;  set decision-array fill-matrix decision-width 1 [ -> random-float 0.01]
-;
-;
-;
-;
-;
-;end
 ;to setup-global-matrix
 ;
 ;  let temp-matrix fill-matrix (decision-width * num-of-teams)  1 [ -> random-float 0.01]
@@ -1189,21 +1195,6 @@ end
 
 
 
-
-
-
-
-
-;to hire-new-drivers
-;
-;  ask racing-teams with [count my-links < link-limit]
-;  [
-;   let x link-limit - count my-links
-;    create-links-to n-of  (link-limit - count my-links)  drivers with[count my-links = 0 ] [tie]
-;    ]
-;end
-
-
 ;to-report  look-for-decisions
 
  ; let decision-plus-range n-values decision-width [random 10]
@@ -1217,34 +1208,6 @@ end
 
 ;end
 
-;to  look-for-decisions
-;
-;if(selection-replacement = "Random")
-;[
-;
-;]
-;
-;if(selection-replacement = "Absolute")
-;[
-;
-;]
-;
-;if(selection-replacement = "Roulette")
-;[
-;
-;]
-;
-;if(selection-replacement = "Rank")
-;[
-;
-;]
-;
-;if(selection-replacement = "Informed")
-;[
-;
-;]
-;
-;end
 
 
 
@@ -1253,103 +1216,7 @@ end
 ;  report matrix:from-row-list n-values n [n-values m [runresult generator]]
 ;end
 ;
-;
-;
-;to update-race
-;  [
-;
-;  ]
-;end
-;
-;to update-racing-teams
-;  ask racing-teams
-; [
-;    set technology-level 10 ;; look-for-decisions
-;   set total-score (car-quality + technology-level + sponsor-appeal + starting-money)
-;
-;]
-;   ask racing-teams with [count my-links = 0]
-;  [
-;    hire-new-drivers
-;
-;  ]
-;
-;
-;end
-;
-;to update-generation
-;let boolean-decision random 2
-;  if(boolean-decision = 1)
-;  [
-;  ask  racing-teams with-min[total-score]
-;  [
-;
-;      die
-;   ]
-;
-;
-;
-;
-;
-;    create-racing-teams 1
-;    ask racing-teams with [ technology-level = 0]
-;    [
-;       set newly-hatched true
-;       setup-hatched-racing-teams
-;     ]
-;  ]
-;
-;end
 
-;  to update-driver-pool
-;
-;
-;  create-drivers  (2 * num-of-teams)
-;  ask drivers
-;  ;;; Setting of Base Stats ;;;
-;  [
-;    set color red
-;    setxy random-xcor random-ycor
-;
-;    set experience random 100
-;
-;  ]
-;
-;
-;
-;
-;
-;end
-;
-
-
-
-
-
-
-
-
-
-
-
-
-
-to  sim-race
-  ask racing-teams
-  [
-
-  ]
-
-
-
-
-end
-
-  to-report racing-team-strategy
-  let x 1
-  report x
-
-end
 @#$#@#$#@
 GRAPHICS-WINDOW
 565
@@ -1488,7 +1355,7 @@ num-of-teams
 num-of-teams
 0
 20
-10.0
+2.0
 1
 1
 NIL
@@ -1520,7 +1387,7 @@ max-floating-point
 max-floating-point
 0.001
 0.99
-0.754
+0.001
 0.001
 1
 NIL
@@ -1565,7 +1432,7 @@ decision-width
 decision-width
 0
 10000
-4050.0
+1475.0
 5
 1
 NIL
@@ -1676,7 +1543,7 @@ search-space-sharing-proportion
 search-space-sharing-proportion
 0
 1
-0.16
+0.26
 0.01
 1
 NIL
@@ -1691,7 +1558,7 @@ no-swaps
 no-swaps
 0
 100000
-1000.0
+6000.0
 1000
 1
 NIL
