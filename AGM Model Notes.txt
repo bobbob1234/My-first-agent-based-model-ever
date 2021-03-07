@@ -18,3 +18,8 @@ Driver Rating
 - Aperodici Behaviour
 - Expected performance
 - 1 - x^1/y + 1 - (log(1/R)))
+
+
+
+Competiveness Description ?
+y = (Fitness Max - Fitness Min)  + W1(Probability(Lead Change Tier Max)) + W2 (Probability(Lead Change Tier Min)) + (Overtake Density)

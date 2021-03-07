@@ -1,4 +1,5 @@
 extensions[
+  cf
   array
   matrix
   table
@@ -20,9 +21,15 @@ breed[authorities authority]
 globals
 [
 ;;temp-patch-agent-list
+;;;; Table Globals ;;;;
 convex_table
 exp_table
 who_table
+league_table
+
+
+
+
 set_exp_0
 track_counter
 track_base
@@ -108,16 +115,24 @@ drivers-own
  expected_performance
 
 ]
-collectors-own
-[
+collectors-own[
   average_overtakes
   fitness
   explore_rate
   avg_performance
   avg_distance
   avg_rating
+  policy_actions_applied
+  average_policy_effect ;; simple linear regression prediction, has policy improved competivness, R^2 of model
 ]
-
+authorities-own
+[
+  node_decision
+  agent_queue
+  consensus_tally
+  disagree_tally
+  vote
+]
 
 ;to startup
 ;  setup
@@ -141,6 +156,7 @@ to setup
   setup-cars
   setup-counters
   setup-agent-exp-table
+  setup-league-table
   setup-collectors
 
 
@@ -268,6 +284,37 @@ to setup-teams
    setup-decision-space-GA
   ]
 end
+
+ to setup-authority
+  set agent_queue []
+  set consensus_tally 0
+  set disagree_tally 0
+  set vote true
+
+end
+
+;  if(Authority-Style = "Agressive")
+;    [
+;      ;;https://www.econstor.eu/bitstream/10419/195190/1/1662796994.pdf
+;      ;; penalize harder - look at overall pace, introduce penalizers for specefic teams
+;      ;; generate hard rules
+;      ;; 70/30 risk reward ratio
+;    ]
+;    if(Authority-Style = "Balanced")
+;    [
+;      ;; penalize balanced - look at overall pace, graudal periods of anti competitveness
+;      ;; generate balanced rules
+;      ;; 50/50 risk reward ratio
+;    ]
+;
+;
+;    if(Authority-Style = "Lenient")
+;    [
+;      ;; penalize less - look at overall pace, graudal periods of anti competitveness
+;      ;; generate rules - influenced by majority voting
+;      ;; 30/70 risk reward ratio
+;    ]
+;
 to setup-agent-exp-table
   set who_table table:make
   let who_range sort [who] of drivers
@@ -276,6 +323,14 @@ to setup-agent-exp-table
   ]
   foreach(who_range) [ index ->
   table:put who_table "experience_of_agent" [experience] of driver index
+  ]
+
+end
+to setup-league-table
+  set league_table table:make
+  let who_range sort[who] of drivers
+  foreach(who_range)[ index ->
+  table:put league_table index 0
   ]
 
 end
@@ -327,6 +382,15 @@ to setup-collectors
   create-collectors  1
 end
 
+to setup-markov-decision-process
+  ;; 1) Assumption that MDP aims to maximise competiveness
+  ;; 2) Finite States
+let policy_table table:make
+let states (list ("driver-rating") ("ability")("budget")("morale"))
+let operations (list ("+") ("-") ("/") ("*"))
+
+end
+
 to update-collectors
   ask collectors [
   set average_overtakes mean [overtakes] of drivers
@@ -338,31 +402,7 @@ to update-collectors
   ]
 
 end
- to setup-authority
 
-  if(Authority-Style = "Agressive")
-    [
-      ;;https://www.econstor.eu/bitstream/10419/195190/1/1662796994.pdf
-      ;; penalize harder - look at overall pace, introduce penalizers for specefic teams
-      ;; generate hard rules
-      ;; 70/30 risk reward ratio
-    ]
-    if(Authority-Style = "Balanced")
-    [
-      ;; penalize balanced - look at overall pace, graudal periods of anti competitveness
-      ;; generate balanced rules
-      ;; 50/50 risk reward ratio
-    ]
-
-
-    if(Authority-Style = "Lenient")
-    [
-      ;; penalize less - look at overall pace, graudal periods of anti competitveness
-      ;; generate rules - influenced by majority voting
-      ;; 30/70 risk reward ratio
-    ]
-
-end
 to generate-points
 
 ;  ask up-to-n-of (random 30) patches
@@ -594,7 +634,7 @@ end
 to  global-hide
 ask racing-teams
   [
-    set hidden? false
+    set hidden? true
   ]
 
   ask drivers
@@ -604,11 +644,45 @@ ask racing-teams
 
   ask onelinks
   [
-    set hidden? false
+    set hidden? true
   ]
 end
 
+ to update-league-table
+  ask drivers with [position_value <= 10]
+  [
+    let who_number [who]  of self
+    let points (table:get league_table who_number )
+    let points2 ""
+      (cf:ifelse
+      position_value = 10 [ set points2 2]
+      position_value = 9 [ set points2 2]
+      position_value = 8 [ set points2 4]
+      position_value = 7 [ set points2 4]
+      position_value = 6 [ set points2 8]
+      position_value = 6 [ set points2 8]
+      position_value = 5 [ set points2 10]
+      position_value = 4 [ set points2 12]
+      position_value = 3 [ set points2 15]
+      position_value = 2 [ set points2 18]
+      position_value = 1 [ set points2 25]
+      position_value = 0 [ set points2 25]
+      )
 
+
+    table:put league_table who_number (points + points2)
+  ]
+
+   ask drivers with [position_value > 10]
+  [
+    let who_number [who]  of self
+    let points (table:get league_table who_number + 0)
+    table:put league_table who_number points
+  ]
+
+
+
+end
  to update-counters
   set track_counter track_counter + 1
 end
@@ -719,11 +793,7 @@ if(track_counter = length track_range)
  ]
  let numlaps lap-set
  set current_track track-set
- if(numlaps > max([lap_count] of drivers))
-[
-simulate-function
-]
- if(numlaps = max([lap_count] of drivers))
+  if(numlaps = max([lap_count] of drivers))
 [
 update-function
 ;;record-data-function
@@ -731,6 +801,12 @@ reset-function
 set numlaps 0
 
 ]
+
+  if(numlaps > max([lap_count] of drivers))
+[
+simulate-function
+]
+
 
 ; update-generation
 ;   update-racing-teams
@@ -757,18 +833,25 @@ to simulate-function
  calc-position
  overtake-increment
 ;; if season_count > 1)
+  if(decision-width > 0)
+  [
  ask racing-teams[update-decision-space-GA]
-
+  ]
 end
 
 to update-function
   update-driver-track-history
+  update-league-table
   ;ask drivers[update-decision-space-GA]
  ;gain-driver-experience
  update-counters
  start-teams
 end
 
+to record-table-function
+
+
+end
 to develop-track-on-fly
   let track_num track_counter
   if(track_num > 0)
@@ -1052,6 +1135,11 @@ set future_patch choice
 report future_patch
 
 end
+to-report report-competitive-index
+  let a max [fitness] of racing-teams
+  let b min [fitness] of racing-teams
+
+end
 to-report report-weighted-average [x y]
   let wt random-float 1
   let wt2 (1 - wt)
@@ -1216,7 +1304,6 @@ end
 ;  report matrix:from-row-list n-values n [n-values m [runresult generator]]
 ;end
 ;
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 565
@@ -1253,7 +1340,7 @@ CHOOSER
 Authority-Style
 Authority-Style
 "Agressive" "Balanced" "Lenient"
-0
+2
 
 PLOT
 1668
@@ -1332,9 +1419,9 @@ PLOT
 7
 1501
 157
-Amount Of Money Vs Technology Level(Generations)
-NIL
-NIL
+System Competiveness
+Ticks
+Competiveness
 0.0
 10.0
 0.0
@@ -1354,8 +1441,8 @@ SLIDER
 num-of-teams
 num-of-teams
 0
-20
-2.0
+10
+10.0
 1
 1
 NIL
@@ -1432,7 +1519,7 @@ decision-width
 decision-width
 0
 10000
-1475.0
+0.0
 5
 1
 NIL
@@ -1741,6 +1828,36 @@ true
 true
 "ask racing-teams\n[\ncreate-temporary-plot-pen (word \"Team\" (who + 1))\nset-plot-pen-color color\n]" "\nask  racing-teams\n[\nset-current-plot-pen (word \"Team\"(who + 1))\n\nplot fitness\n\n]\n\n"
 PENS
+
+SLIDER
+1040
+500
+1212
+533
+driver-rating-policy
+driver-rating-policy
+-100
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1255
+505
+1427
+538
+ability-rating-policy
+ability-rating-policy
+-100
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
